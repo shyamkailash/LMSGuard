@@ -1,0 +1,5 @@
+mss
+Pillow
+psutil
+pywin32; platform_system == "Windows"
+websocket-client

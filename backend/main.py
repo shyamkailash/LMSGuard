@@ -1,12 +1,15 @@
 from typing import List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel
 
 from app.agents.lms_agent import LMSGuardAgent
+from app.database import init_db, save_risk_log, get_risk_logs
 
 
-app = FastAPI()
+app = FastAPI(title="LMSGuard Backend")
+
+init_db()
 
 lms_agent = LMSGuardAgent()
 
@@ -27,4 +30,19 @@ def analyze_agent_events(request: AgentAnalyzeRequest):
         student_id=request.student_id,
         events=request.events
     )
+
+    log_id = save_risk_log(
+        student_id=request.student_id,
+        events=request.events,
+        result=result
+    )
+
+    result["log_id"] = log_id
+
     return result
+
+
+@app.get("/api/agent/logs")
+def get_agent_logs(limit: int = Query(default=50, ge=1, le=100)):
+    logs = get_risk_logs(limit=limit)
+    return {"logs": logs}

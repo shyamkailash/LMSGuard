@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import mss
 import io
 from PIL import Image

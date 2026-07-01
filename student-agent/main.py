@@ -20,9 +20,7 @@ while True:
     window = get_active_window()
 
 
-    app_event = check_app(
-        window["app"]
-    )
+    app_event = check_app(window)
 
 
     if app_event:

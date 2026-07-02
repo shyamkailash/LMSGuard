@@ -1,3 +1,4 @@
+HEAD
 # Next.js build output
 .next/
 out/
@@ -34,3 +35,5 @@ temp/
 # Backend Python files (if excluding from frontend repo)
 backend/venv/
 student-agent/venv/
+node_modules
+a497b3862bbe4bce31e377e45c9995803949346e

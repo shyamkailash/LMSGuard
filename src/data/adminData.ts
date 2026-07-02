@@ -88,10 +88,11 @@ export const ALL_VIOLATIONS = [
 
 // ─── Active monitoring sessions ───────────────────────────────────────────────
 export const ACTIVE_SESSIONS : MonitoringSession[] = [
-  { id:"SES001", invigilator:"John Martin",  class:"CSE-3A", exam:"DBMS Final Exam",      students:20, violations:8,  status:"active",  startTime:"10:00 AM" },
-  { id:"SES002", invigilator:"Sarah Thomas", class:"CSE-3B", exam:"Java Programming Test", students:8,  violations:4,  status:"active",  startTime:"02:00 PM" },
-  { id:"SES003", invigilator:"Ravi Sharma",  class:"ECE-3A", exam:"Digital Circuits Exam", students:10, violations:4,  status:"active",  startTime:"11:00 AM" },
-  { id:"SES004", invigilator:"Arun Kumar",   class:"CSE-3A", exam:"DBMS Final Exam",       students:20, violations:3,  status:"paused",  startTime:"10:00 AM" },
+  { id:"SES001", invigilator:"John Martin",  class:"CSE-3A", exam:"DBMS Final Exam",       students:20, violations:8,  status:"active",  startTime:"10:00 AM" },
+  { id:"SES002", invigilator:"Sarah Thomas", class:"CSE-3B", exam:"Java Programming Test",  students:8,  violations:4,  status:"active",  startTime:"02:00 PM" },
+  { id:"SES003", invigilator:"Ravi Sharma",  class:"ECE-3A", exam:"Digital Circuits Exam",  students:10, violations:4,  status:"active",  startTime:"11:00 AM" },
+  { id:"SES004", invigilator:"Arun Kumar",   class:"CSE-3A", exam:"DBMS Final Exam",        students:20, violations:3,  status:"paused",  startTime:"10:00 AM" },
+  { id:"SES005", invigilator:"Priya Nair",   class:"IT-2A",  exam:"Web Technologies Test",  students:10, violations:2,  status:"active",  startTime:"02:00 PM" },
 ];
 
 // ─── System stats ─────────────────────────────────────────────────────────────

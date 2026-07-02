@@ -1,0 +1,303 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════
+   LMSGuard AI — Premium University Portal
+   Sri Shakthi Institute of Engineering & Technology
+   Design: Clean · Elegant · Modern · Professional
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Design Tokens ─────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg:           #F8FAFC;
+  --bg-subtle:    #F1F5F9;
+  --bg-muted:     #E8EEF4;
+  --card:         #FFFFFF;
+  --card-hover:   #FAFCFF;
+  --sidebar:      #FFFFFF;
+
+  /* Brand Blue (Primary) */
+  --primary:        #2563EB;
+  --primary-hover:  #1D4ED8;
+  --primary-soft:   #EFF6FF;
+  --primary-border: rgba(37,99,235,0.2);
+  --primary-glow:   rgba(37,99,235,0.12);
+
+  /* Secondary */
+  --secondary:      #3B82F6;
+  --accent:         #60A5FA;
+
+  /* Functional */
+  --success:        #22C55E;
+  --success-soft:   #F0FDF4;
+  --success-border: rgba(34,197,94,0.22);
+  --warning:        #F59E0B;
+  --warning-soft:   #FFFBEB;
+  --warning-border: rgba(245,158,11,0.22);
+  --danger:         #EF4444;
+  --danger-soft:    #FFF1F2;
+  --danger-border:  rgba(239,68,68,0.22);
+  --purple:         #8B5CF6;
+  --purple-soft:    #F5F3FF;
+  --purple-border:  rgba(139,92,246,0.22);
+
+  /* College brand */
+  --college-green:  #1B4D1E;
+  --college-yellow: #F5C800;
+
+  /* Text */
+  --text-primary:   #0F172A;
+  --text-secondary: #475569;
+  --text-muted:     #94A3B8;
+  --text-subtle:    #CBD5E1;
+
+  /* Border */
+  --border:       #E2E8F0;
+  --border-soft:  #F1F5F9;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(15,23,42,0.06);
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.05);
+  --shadow:    0 4px 6px rgba(15,23,42,0.05), 0 2px 4px rgba(15,23,42,0.04);
+  --shadow-md: 0 8px 16px rgba(15,23,42,0.06), 0 4px 8px rgba(15,23,42,0.04);
+  --shadow-lg: 0 16px 32px rgba(15,23,42,0.08), 0 8px 16px rgba(15,23,42,0.05);
+  --shadow-xl: 0 24px 48px rgba(15,23,42,0.10), 0 12px 24px rgba(15,23,42,0.06);
+
+  /* Card glow on hover */
+  --card-glow: 0 0 0 1px rgba(37,99,235,0.1), 0 8px 24px rgba(37,99,235,0.08);
+}
+
+
+
+/* ─── Base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* ─── Inter font ────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ─── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 99px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Input ─────────────────────────────────────────────────── */
+.input-field {
+  width: 100%;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: border-color 0.18s, box-shadow 0.18s;
+  outline: none;
+}
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+.input-field::placeholder { color: var(--text-muted); }
+
+/* ─── Badges ─────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  letter-spacing: 0.01em;
+}
+.badge-danger   { background:var(--danger-soft);   color:var(--danger);   border-color:var(--danger-border);  }
+.badge-warning  { background:var(--warning-soft);  color:var(--warning);  border-color:var(--warning-border); }
+.badge-success  { background:var(--success-soft);  color:var(--success);  border-color:var(--success-border); }
+.badge-primary  { background:var(--primary-soft);  color:var(--primary);  border-color:var(--primary-border); }
+.badge-purple   { background:var(--purple-soft);   color:var(--purple);   border-color:var(--purple-border);  }
+
+/* ─── Buttons ────────────────────────────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1D4ED8, #1E40AF);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+}
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  background: var(--card);
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.18s ease;
+}
+.btn-secondary:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary-border);
+}
+
+/* ─── Table ──────────────────────────────────────────────────── */
+.table-row { transition: background 0.12s ease; }
+.table-row:hover { background: var(--primary-soft); }
+
+/* ─── Cards ──────────────────────────────────────────────────── */
+.card-premium {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card-premium:hover {
+  box-shadow: var(--card-glow);
+  transform: translateY(-2px);
+}
+
+/* ─── Sidebar nav item ───────────────────────────────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.nav-item:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.nav-item.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+/* Legacy compat */
+.sidebar-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; font-size:14px; font-weight:500; color:var(--text-secondary); cursor:pointer; transition:all 0.15s ease; position:relative; }
+.sidebar-item:hover { background:var(--primary-soft); color:var(--primary); }
+.sidebar-item.active { background:var(--primary-soft); color:var(--primary); font-weight:600; }
+
+/* ─── Animations ─────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity:1; transform:scale(1);   }
+  50%       { opacity:0.5; transform:scale(1.4); }
+}
+.pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+@keyframes live-blink {
+  0%, 100% { opacity:1;   }
+  50%       { opacity:0.25; }
+}
+.live-blink { animation: live-blink 1.5s ease-in-out infinite; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0);    }
+}
+.fade-up { animation: fadeUp 0.35s ease-out forwards; }
+
+@keyframes slideInRight {
+  from { opacity:0; transform:translateX(24px); }
+  to   { opacity:1; transform:translateX(0);    }
+}
+.slide-in-right { animation: slideInRight 0.3s ease-out forwards; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-muted) 50%, var(--bg-subtle) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ─── Risk Progress Bars ─────────────────────────────────────── */
+.risk-bar-safe    { background: linear-gradient(90deg, #16A34A, #22C55E); }
+.risk-bar-warning { background: linear-gradient(90deg, #D97706, #F59E0B); }
+.risk-bar-danger  { background: linear-gradient(90deg, #DC2626, #EF4444); }
+
+/* ─── Premium gradient backgrounds ──────────────────────────── */
+.gradient-blue  { background: linear-gradient(135deg, #EFF6FF, #DBEAFE); }
+.gradient-green { background: linear-gradient(135deg, #F0FDF4, #DCFCE7); }
+.gradient-gold  { background: linear-gradient(135deg, #FFFBEB, #FEF3C7); }
+.gradient-red   { background: linear-gradient(135deg, #FFF1F2, #FFE4E6); }
+
+/* ─── Glass card ─────────────────────────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+/* ─── Section heading accent ─────────────────────────────────── */
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.section-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Blue top border accent for cards ──────────────────────── */
+.card-accent-top {
+  position: relative;
+}
+.card-accent-top::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 16px; right: 16px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, #2563EB, #60A5FA);
+}

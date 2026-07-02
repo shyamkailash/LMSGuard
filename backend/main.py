@@ -9,7 +9,12 @@ agent_events = []
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",   # Next.js frontend
+        "http://localhost:5173",   # Vite frontend
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -18,7 +23,7 @@ app.add_middleware(
 
 @app.get("/")
 def home():
-    return {"message": "LMSGuard Backend Running"}
+    return {"message": "Backend Connected Successfully"}
 
 
 @app.get("/api/agent-events")

@@ -5,6 +5,7 @@ import { Bell, ChevronDown, Wifi, WifiOff, Search, Users, BookOpen, LogOut } fro
 import Sidebar from "./Sidebar";
 import AlertPopup from "./AlertPopup";
 import NetworkIssuePopup from "./NetworkIssuePopup";
+import BackendStatus from "./BackendStatus";
 import { connectSocket, onEvent } from "@/services/websocket";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -148,7 +149,10 @@ export default function DashboardLayout({ children, title, subtitle }) {
               </AnimatePresence>
             </motion.button>
 
-            
+            {/* Backend API status */}
+            <div className="hidden md:block">
+              <BackendStatus />
+            </div>
 
             {/* User */}
             <div className="flex items-center gap-2 pl-2.5" style={{ borderLeft:"1px solid var(--border)" }}>

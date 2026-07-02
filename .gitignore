@@ -21,3 +21,16 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+# Editor files
+.idea/
+.vscode/
+
+# Build artifacts
+*.log
+cache/
+temp/
+
+# Backend Python files (if excluding from frontend repo)
+backend/venv/
+student-agent/venv/

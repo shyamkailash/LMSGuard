@@ -45,3 +45,46 @@ __pycache__/
 *.pyc
 backend/__pycache__/
 student-agent/__pycache__/
+
+# LMSGuard evidence files
+backend/evidence/screenshots/*.jpg
+backend/evidence/screenshots/*.png
+backend/evidence/videos/*.mp4
+backend/logs/*.json
+!backend/evidence/screenshots/.gitkeep
+!backend/evidence/videos/.gitkeep
+!backend/logs/.gitkeep
+
+# Python virtual environments
+venv/
+.venv/
+backend/venv/
+student-agent/venv/
+
+# Python cache
+__pycache__/
+*.pyc
+backend/__pycache__/
+student-agent/__pycache__/
+
+# Node cache/build
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+frontend/.env.local
+
+# Evidence/generated files
+backend/evidence/screenshots/*.jpg
+backend/evidence/screenshots/*.png
+backend/evidence/videos/*.mp4
+backend/logs/*.json
+!backend/evidence/screenshots/.gitkeep
+!backend/evidence/videos/.gitkeep
+!backend/logs/.gitkeep

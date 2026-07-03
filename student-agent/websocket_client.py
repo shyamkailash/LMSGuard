@@ -1,9 +1,7 @@
 import json
 import os
 import time
-# pyrefly: ignore [missing-import]
 import websocket
-
 
 class WebSocketClient:
     def __init__(self, url=None, reconnect_delay=3):

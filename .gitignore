@@ -39,3 +39,9 @@ student-agent/venv/
 # Connection demo
 connection-demo/node_modules/
 connection-demo/dist/
+
+# Python cache
+__pycache__/
+*.pyc
+backend/__pycache__/
+student-agent/__pycache__/

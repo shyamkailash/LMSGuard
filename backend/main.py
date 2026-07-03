@@ -1,12 +1,14 @@
 import json
 from datetime import datetime
-
+from live_monitoring_agent import LiveMonitoringAgent
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
 agent_events = []
+live_monitoring_agent = LiveMonitoringAgent()
+live_alerts = []
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +50,9 @@ def get_latest_screenshot():
             return event
 
     return {"message": "No screenshot found"}
+@app.get("/api/live-alerts")
+def get_live_alerts():
+    return live_alerts[-50:]
 
 @app.websocket("/ws/student-agent")
 async def student_agent_ws(websocket: WebSocket):
@@ -70,6 +75,8 @@ async def student_agent_ws(websocket: WebSocket):
                 event["student_id"] = "student-001"
 
             agent_events.append(event)
+            alert = live_monitoring_agent.process_event(event)
+            live_alerts.append(alert)
 
             print("[BACKEND] Agent event received:", sanitize_event(event))
 

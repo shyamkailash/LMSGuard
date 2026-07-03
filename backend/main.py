@@ -1,7 +1,8 @@
+import json
+from datetime import datetime
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
-import json
 
 app = FastAPI()
 
@@ -21,6 +22,15 @@ app.add_middleware(
 )
 
 
+def sanitize_event(event: dict) -> dict:
+    safe_event = event.copy()
+
+    if "image" in safe_event:
+        safe_event["image"] = f"<base64 image hidden, size={len(event.get('image', ''))}>"
+
+    return safe_event
+
+
 @app.get("/")
 def home():
     return {"message": "Backend Connected Successfully"}
@@ -28,17 +38,8 @@ def home():
 
 @app.get("/api/agent-events")
 def get_agent_events():
-    safe_events = []
+    return [sanitize_event(event) for event in agent_events[-50:]]
 
-    for event in agent_events[-50:]:
-        safe_event = event.copy()
-
-        if "image" in safe_event:
-            safe_event["image"] = f"<base64 image hidden, size={len(event.get('image', ''))}>"
-
-        safe_events.append(safe_event)
-
-    return safe_events
 
 @app.get("/api/latest-screenshot")
 def get_latest_screenshot():
@@ -70,12 +71,7 @@ async def student_agent_ws(websocket: WebSocket):
 
             agent_events.append(event)
 
-            safe_event = event.copy()
-
-            if "image" in safe_event:
-                safe_event["image"] = f"<base64 image hidden, size={len(event.get('image', ''))}>"
-
-            print("[BACKEND] Agent event received:", safe_event)
+            print("[BACKEND] Agent event received:", sanitize_event(event))
 
             await websocket.send_json({
                 "status": "received",

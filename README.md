@@ -22,7 +22,7 @@ nvm install --lts
 
 ### 2. Install dependencies
 ```bash
-cd "/home/sathasivam/Desktop/frontend only"
+cd "/home/Desktop/frontend only"
 npm install
 ```
 

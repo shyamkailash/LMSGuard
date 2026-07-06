@@ -88,3 +88,9 @@ backend/logs/*.json
 !backend/evidence/screenshots/.gitkeep
 !backend/evidence/videos/.gitkeep
 !backend/logs/.gitkeep
+
+# SQLite database files
+backend/*.db
+backend/*.db-journal
+backend/*.sqlite
+backend/*.sqlite3

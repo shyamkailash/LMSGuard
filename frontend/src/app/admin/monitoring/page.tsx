@@ -1,204 +1,384 @@
 "use client";
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import AdminLayout from "@/components/AdminLayout";
-import { ACTIVE_SESSIONS, ALL_VIOLATIONS } from "@/data/adminData";
-import { Monitor, Square, Play, AlertTriangle, Users, Shield, CheckCircle, Eye } from "lucide-react";
 
-const SEV_CFG = {
-  critical: { cls:"badge-danger",  label:"Critical", dot:"var(--danger)"  },
-  medium:   { cls:"badge-warning", label:"Medium",   dot:"var(--warning)" },
-  warning:  { cls:"badge-warning", label:"Warning",  dot:"var(--warning)" },
+import { useEffect, useState } from "react";
+import { fetchJson } from "@/lib/api";
+import {
+  Shield,
+  Lock,
+  Unlock,
+  Monitor,
+  AlertTriangle,
+  ClipboardX,
+  MousePointerClick,
+  Wifi,
+  Save,
+} from "lucide-react";
+
+type SecurityControl = {
+  student_id: string;
+  monitoring_enabled: boolean;
+  exam_locked: boolean;
+  screen_capture_enabled: boolean;
+  unauthorized_app_blocking: boolean;
+  clipboard_blocked: boolean;
+  tab_switch_blocked: boolean;
+  warning_message: string;
+  updated_at: string;
 };
 
 export default function AdminMonitoringPage() {
-  const [sessions, setSessions] = useState(ACTIVE_SESSIONS);
-  const [toast,    setToast]    = useState(null);
+  const [controls, setControls] = useState<SecurityControl[]>([]);
+  const [connected, setConnected] = useState(false);
+  const [savingStudent, setSavingStudent] = useState<string | null>(null);
 
-  function stopSession(id) {
-    setSessions(prev => prev.map(s => s.id===id ? { ...s, status:"stopped" } : s));
-    setToast("Session stopped by Admin");
-    setTimeout(() => setToast(null), 3000);
+  async function loadControls() {
+    try {
+      const data = await fetchJson<SecurityControl[]>("/api/admin/security-controls");
+      setControls(data);
+      setConnected(true);
+    } catch (error) {
+      console.error("Failed to load security controls:", error);
+      setConnected(false);
+    }
   }
 
-  function resumeSession(id) {
-    setSessions(prev => prev.map(s => s.id===id ? { ...s, status:"active" } : s));
-    setToast("Session resumed by Admin");
-    setTimeout(() => setToast(null), 3000);
+  async function updateControl(studentId: string, patch: Partial<SecurityControl>) {
+    const current = controls.find((item) => item.student_id === studentId);
+    if (!current) return;
+
+    const updated = { ...current, ...patch };
+
+    setControls((prev) =>
+      prev.map((item) => (item.student_id === studentId ? updated : item))
+    );
+
+    try {
+      setSavingStudent(studentId);
+      const saved = await fetchJson<SecurityControl>("/api/admin/security-controls", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updated),
+      });
+
+      setControls((prev) =>
+        prev.map((item) => (item.student_id === studentId ? saved : item))
+      );
+    } catch (error) {
+      console.error("Failed to update security control:", error);
+      await loadControls();
+    } finally {
+      setSavingStudent(null);
+    }
   }
 
-  const active  = sessions.filter(s=>s.status==="active").length;
-  const paused  = sessions.filter(s=>s.status==="paused").length;
-  const stopped = sessions.filter(s=>s.status==="stopped").length;
-  const totalStudents = sessions.filter(s=>s.status==="active").reduce((a,s)=>a+s.students,0);
+  useEffect(() => {
+    loadControls();
+    const timer = setInterval(loadControls, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
-    <AdminLayout title="Monitoring Control" subtitle="System-wide exam monitoring — all sessions">
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }}
-            exit={{ opacity:0, y:-20 }}
-            className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
-            style={{ background:"var(--success)", color:"white" }}>
-            <CheckCircle size={14}/>
-            <span className="text-sm font-semibold">{toast}</span>
-          </motion.div>
+    <main
+      className="min-h-screen p-6"
+      style={{ background: "var(--bg)", color: "var(--text-primary)" }}
+    >
+      <section
+        className="rounded-3xl p-6 mb-6"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(37,99,235,0.14), rgba(124,58,237,0.08))",
+          border: "1px solid rgba(37,99,235,0.25)",
+          boxShadow: "var(--shadow)",
+        }}
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <p
+              className="text-xs font-bold uppercase tracking-wider mb-2"
+              style={{ color: "var(--primary)" }}
+            >
+              LMSGuard Admin Control
+            </p>
+
+            <h1 className="text-3xl font-bold mb-2">
+              Examination Security Panel
+            </h1>
+
+            <p className="text-sm max-w-2xl" style={{ color: "var(--text-muted)" }}>
+              Control student monitoring, exam lock, screenshot capture,
+              unauthorized app detection, clipboard blocking, and tab-switch
+              protection from one admin console.
+            </p>
+          </div>
+
+          <div
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
+            style={{
+              background: connected ? "var(--success-muted)" : "var(--danger-muted)",
+              color: connected ? "var(--success)" : "var(--danger)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <Wifi size={15} />
+            {connected ? "Database Connected" : "Backend Disconnected"}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Metric title="Students Controlled" value={controls.length} />
+        <Metric
+          title="Monitoring Enabled"
+          value={controls.filter((c) => c.monitoring_enabled).length}
+        />
+        <Metric
+          title="Exam Locked"
+          value={controls.filter((c) => c.exam_locked).length}
+        />
+        <Metric
+          title="App Blocking"
+          value={controls.filter((c) => c.unauthorized_app_blocking).length}
+        />
+      </section>
+
+      <section className="space-y-4">
+        {controls.length === 0 ? (
+          <div
+            className="rounded-2xl p-8 text-center"
+            style={{
+              background: "var(--card)",
+              border: "1px dashed var(--border)",
+              color: "var(--text-muted)",
+            }}
+          >
+            No real student-agent data found yet. Start the student-agent to
+            register students.
+          </div>
+        ) : (
+          controls.map((control) => (
+            <StudentSecurityCard
+              key={control.student_id}
+              control={control}
+              saving={savingStudent === control.student_id}
+              onChange={(patch) => updateControl(control.student_id, patch)}
+            />
+          ))
         )}
-      </AnimatePresence>
+      </section>
+    </main>
+  );
+}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[
-          { label:"Active Sessions",         value:active,        color:"var(--success)", border:"rgba(22,163,74,0.2)"  },
-          { label:"Paused",                  value:paused,        color:"var(--warning)", border:"rgba(217,119,6,0.2)"  },
-          { label:"Stopped by Admin",        value:stopped,       color:"var(--danger)",  border:"rgba(220,38,38,0.2)"  },
-          { label:"Students Monitored",      value:totalStudents, color:"var(--primary)", border:"rgba(37,99,235,0.2)"  },
-        ].map(({ label, value, color, border }, i) => (
-          <motion.div key={label} initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
-            transition={{ delay:i*0.07 }}
-            className="rounded-2xl p-4"
-            style={{ background:"var(--card)", border:`1px solid ${border}`, boxShadow:"var(--shadow)" }}>
-            <p className="text-xs uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>{label}</p>
-            <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-          </motion.div>
-        ))}
-      </div>
+function Metric({ title, value }: { title: string; value: number | string }) {
+  return (
+    <div
+      className="rounded-2xl p-5"
+      style={{
+        background: "var(--card)",
+        border: "1px solid var(--border)",
+        boxShadow: "var(--shadow)",
+      }}
+    >
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+        {title}
+      </p>
+    </div>
+  );
+}
 
-      {/* Session Cards */}
-      <div className="mb-6">
-        <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color:"var(--text-muted)" }}>
-          All Monitoring Sessions
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sessions.map((s, i) => (
-            <motion.div key={s.id}
-              initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.08 }}
-              className="rounded-2xl p-4"
+function StudentSecurityCard({
+  control,
+  saving,
+  onChange,
+}: {
+  control: SecurityControl;
+  saving: boolean;
+  onChange: (patch: Partial<SecurityControl>) => void;
+}) {
+  return (
+    <div
+      className="rounded-3xl p-5"
+      style={{
+        background: "var(--card)",
+        border: "1px solid var(--border)",
+        boxShadow: "var(--shadow)",
+      }}
+    >
+      <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+        <div className="min-w-[220px]">
+          <div className="flex items-center gap-3 mb-3">
+            <div
+              className="w-11 h-11 rounded-2xl flex items-center justify-center"
               style={{
-                background:"var(--card)",
-                border:`1px solid ${s.status==="active"?"rgba(22,163,74,0.2)":s.status==="stopped"?"rgba(220,38,38,0.15)":"rgba(217,119,6,0.2)"}`,
-                boxShadow:"var(--shadow)",
-                opacity: s.status==="stopped" ? 0.7 : 1,
-              }}>
-              {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ background: s.status==="active"?"var(--success-muted)":s.status==="stopped"?"var(--danger-muted)":"var(--warning-muted)",
-                             border:`1px solid ${s.status==="active"?"rgba(22,163,74,0.2)":s.status==="stopped"?"rgba(220,38,38,0.2)":"rgba(217,119,6,0.2)"}` }}>
-                    <Monitor size={16} style={{ color: s.status==="active"?"var(--success)":s.status==="stopped"?"var(--danger)":"var(--warning)" }}/>
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm" style={{ color:"var(--text-primary)" }}>{s.invigilator}</p>
-                    <p className="text-[10px]" style={{ color:"var(--text-muted)" }}>Started {s.startTime}</p>
-                  </div>
-                </div>
-                <span className={`badge ${s.status==="active"?"badge-success":s.status==="stopped"?"badge-danger":"badge-warning"} text-[10px]`}>
-                  {s.status}
-                </span>
-              </div>
+                background: control.exam_locked
+                  ? "var(--danger-muted)"
+                  : "var(--primary-muted)",
+                color: control.exam_locked ? "var(--danger)" : "var(--primary)",
+              }}
+            >
+              {control.exam_locked ? <Lock size={20} /> : <Unlock size={20} />}
+            </div>
 
-              {/* Info */}
-              <div className="rounded-xl p-3 mb-3"
-                style={{ background:"var(--bg-deep)", border:"1px solid var(--border)" }}>
-                <div className="space-y-1">
-                  {[
-                    { label:"Class",      value:s.class,    color:"var(--primary)"         },
-                    { label:"Exam",       value:s.exam,     color:"var(--text-primary)"     },
-                    { label:"Students",   value:s.students, color:"var(--text-secondary)"   },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} className="flex justify-between text-xs">
-                      <span style={{ color:"var(--text-muted)" }}>{label}</span>
-                      <span className="font-semibold" style={{ color }}>{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div>
+              <h2 className="font-bold text-lg">{control.student_id}</h2>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Last updated: {control.updated_at}
+              </p>
+            </div>
+          </div>
 
-              {/* Violations badge */}
-              {s.violations > 0 && (
-                <div className="flex items-center gap-1.5 mb-3">
-                  <AlertTriangle size={12} style={{ color:"var(--danger)" }}/>
-                  <span className="text-xs font-semibold" style={{ color:"var(--danger)" }}>
-                    {s.violations} violations detected
-                  </span>
-                </div>
-              )}
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold"
+            style={{
+              background: control.exam_locked
+                ? "var(--danger-muted)"
+                : "var(--success-muted)",
+              color: control.exam_locked ? "var(--danger)" : "var(--success)",
+            }}
+          >
+            {control.exam_locked ? "EXAM LOCKED" : "EXAM ACTIVE"}
+          </div>
+        </div>
 
-              {/* Admin actions */}
-              <div className="flex gap-2">
-                {s.status === "active" && (
-                  <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-                    onClick={() => stopSession(s.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white"
-                    style={{ background:"var(--danger)" }}>
-                    <Square size={11}/> Stop Session
-                  </motion.button>
-                )}
-                {s.status === "paused" && (
-                  <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-                    onClick={() => resumeSession(s.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white"
-                    style={{ background:"var(--success)" }}>
-                    <Play size={11}/> Resume
-                  </motion.button>
-                )}
-                {s.status === "stopped" && (
-                  <div className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold"
-                    style={{ background:"var(--bg-deep)", color:"var(--text-muted)", border:"1px solid var(--border)" }}>
-                    <Shield size={11}/> Stopped by Admin
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 flex-1">
+          <Toggle
+            title="Monitoring"
+            description="Enable live tracking"
+            icon={<Shield size={16} />}
+            checked={control.monitoring_enabled}
+            onChange={(value) => onChange({ monitoring_enabled: value })}
+          />
+
+          <Toggle
+            title="Exam Lock"
+            description="Lock student session"
+            icon={<Lock size={16} />}
+            checked={control.exam_locked}
+            onChange={(value) => onChange({ exam_locked: value })}
+          />
+
+          <Toggle
+            title="Screenshots"
+            description="Capture screen evidence"
+            icon={<Monitor size={16} />}
+            checked={control.screen_capture_enabled}
+            onChange={(value) => onChange({ screen_capture_enabled: value })}
+          />
+
+          <Toggle
+            title="Unauthorized Apps"
+            description="Detect blocked apps"
+            icon={<AlertTriangle size={16} />}
+            checked={control.unauthorized_app_blocking}
+            onChange={(value) => onChange({ unauthorized_app_blocking: value })}
+          />
+
+          <Toggle
+            title="Clipboard Block"
+            description="Prevent copy/paste"
+            icon={<ClipboardX size={16} />}
+            checked={control.clipboard_blocked}
+            onChange={(value) => onChange({ clipboard_blocked: value })}
+          />
+
+          <Toggle
+            title="Tab Switch Block"
+            description="Detect switching"
+            icon={<MousePointerClick size={16} />}
+            checked={control.tab_switch_blocked}
+            onChange={(value) => onChange({ tab_switch_blocked: value })}
+          />
         </div>
       </div>
 
-      {/* Recent Violations — System Wide */}
-      <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.45 }}
-        className="rounded-2xl overflow-hidden"
-        style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-        <div className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom:"1px solid var(--border)", background:"var(--bg-deep)" }}>
-          <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>
-            Recent Violations — All Classes
-          </h3>
-          <a href="/admin/violations" className="text-xs font-medium" style={{ color:"var(--primary)" }}>
-            View all
-          </a>
+      <div className="mt-5">
+        <label
+          className="text-xs font-bold uppercase tracking-wider"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Warning Message
+        </label>
+
+        <div className="flex flex-col md:flex-row gap-3 mt-2">
+          <input
+            value={control.warning_message}
+            onChange={(e) => onChange({ warning_message: e.target.value })}
+            className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
+            style={{
+              background: "var(--bg-deep)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
+            }}
+            placeholder="Message shown to the student"
+          />
+
+          <button
+            disabled={saving}
+            className="px-5 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+            style={{
+              background: "var(--primary)",
+              color: "white",
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            <Save size={15} />
+            {saving ? "Saving..." : "Saved"}
+          </button>
         </div>
-        <div className="grid grid-cols-[2fr_1.2fr_1.5fr_1fr_1fr_1fr] gap-4 px-5 py-3"
-          style={{ borderBottom:"1px solid var(--border)", background:"var(--bg-deep)" }}>
-          {["Student","Class","Type","Exam","Time","Severity"].map(h => (
-            <p key={h} className="text-[10px] font-bold uppercase tracking-wider" style={{ color:"var(--text-muted)" }}>{h}</p>
-          ))}
+      </div>
+    </div>
+  );
+}
+
+function Toggle({
+  title,
+  description,
+  icon,
+  checked,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className="rounded-2xl p-4 text-left transition-all"
+      style={{
+        background: checked ? "var(--primary-muted)" : "var(--bg-deep)",
+        border: `1px solid ${checked ? "rgba(37,99,235,0.35)" : "var(--border)"}`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div style={{ color: checked ? "var(--primary)" : "var(--text-muted)" }}>
+          {icon}
         </div>
-        {ALL_VIOLATIONS.slice(0,8).map((v, i) => {
-          const sc = SEV_CFG[v.severity] || SEV_CFG.medium;
-          return (
-            <div key={v.id}
-              className="grid grid-cols-[2fr_1.2fr_1.5fr_1fr_1fr_1fr] gap-4 px-5 py-3 table-row"
-              style={{ borderBottom:"1px solid var(--border-soft)" }}>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1B4D1E] to-[#F5C800]
-                                flex items-center justify-center text-white text-[9px] font-bold shrink-0">
-                  {v.studentName.split(" ").map(n=>n[0]).join("").slice(0,2)}
-                </div>
-                <span className="text-xs font-medium truncate" style={{ color:"var(--text-primary)" }}>{v.studentName}</span>
-              </div>
-              <span className="text-xs flex items-center" style={{ color:"var(--text-secondary)" }}>{v.class}</span>
-              <span className="text-xs flex items-center" style={{ color:"var(--text-secondary)" }}>{v.type}</span>
-              <span className="text-xs flex items-center truncate" style={{ color:"var(--text-muted)" }}>{v.exam}</span>
-              <span className="text-xs font-mono flex items-center" style={{ color:"var(--text-muted)" }}>{v.time}</span>
-              <div className="flex items-center">
-                <span className={`badge ${sc.cls} text-[9px]`}>{sc.label}</span>
-              </div>
-            </div>
-          );
-        })}
-      </motion.div>
-    </AdminLayout>
+
+        <div
+          className="w-10 h-5 rounded-full p-0.5"
+          style={{
+            background: checked ? "var(--primary)" : "var(--border)",
+          }}
+        >
+          <div
+            className="w-4 h-4 rounded-full bg-white transition-transform"
+            style={{
+              transform: checked ? "translateX(20px)" : "translateX(0px)",
+            }}
+          />
+        </div>
+      </div>
+
+      <p className="text-sm font-bold">{title}</p>
+      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+        {description}
+      </p>
+    </button>
   );
 }

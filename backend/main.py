@@ -4,6 +4,13 @@ from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from security_controls import (
+    init_security_controls,
+    get_all_security_controls,
+    get_security_control,
+    update_security_control,
+)
+
 from database import (
     get_dashboard_summary,
     get_live_alerts as get_live_alerts_from_db,
@@ -20,7 +27,7 @@ app = FastAPI()
 
 init_db()
 seed_demo_data()
-
+init_security_controls()
 agent_events = []
 live_monitoring_agent = LiveMonitoringAgent()
 live_alerts = []
@@ -65,6 +72,19 @@ def dashboard_summary():
 def get_agent_events():
     return get_monitoring_events(limit=50)
 
+@app.get("/api/admin/security-controls")
+def admin_security_controls():
+    return get_all_security_controls()
+
+
+@app.post("/api/admin/security-controls")
+async def update_admin_security_control(payload: dict):
+    return update_security_control(payload)
+
+
+@app.get("/api/student/security-control/{student_id}")
+def student_security_control(student_id: str):
+    return get_security_control(student_id)
 
 @app.get("/api/latest-screenshot")
 def get_latest_screenshot():

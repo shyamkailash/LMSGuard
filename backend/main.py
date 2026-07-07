@@ -4,6 +4,9 @@ from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import engine
+from app import models
+
 from security_controls import (
     init_security_controls,
     get_all_security_controls,
@@ -20,14 +23,17 @@ from database import (
     save_monitoring_event,
     seed_demo_data,
 )
+
 from live_monitoring_agent import LiveMonitoringAgent
 
-
 app = FastAPI()
+
+models.Base.metadata.create_all(bind=engine)
 
 init_db()
 seed_demo_data()
 init_security_controls()
+
 agent_events = []
 live_monitoring_agent = LiveMonitoringAgent()
 live_alerts = []
@@ -50,7 +56,9 @@ def sanitize_event(event: dict) -> dict:
     safe_event = event.copy()
 
     if "image" in safe_event:
-        safe_event["image"] = f"<base64 image hidden, size={len(event.get('image', ''))}>"
+        safe_event["image"] = (
+            f"<base64 image hidden, size={len(event.get('image', ''))}>"
+        )
 
     return safe_event
 
@@ -72,6 +80,7 @@ def dashboard_summary():
 def get_agent_events():
     return get_monitoring_events(limit=50)
 
+
 @app.get("/api/admin/security-controls")
 def admin_security_controls():
     return get_all_security_controls()
@@ -85,6 +94,7 @@ async def update_admin_security_control(payload: dict):
 @app.get("/api/student/security-control/{student_id}")
 def student_security_control(student_id: str):
     return get_security_control(student_id)
+
 
 @app.get("/api/latest-screenshot")
 def get_latest_screenshot():

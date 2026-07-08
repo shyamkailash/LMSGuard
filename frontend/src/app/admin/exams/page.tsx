@@ -71,7 +71,7 @@ export default function ExamsPage() {
             className="grid grid-cols-[2fr_1.5fr_0.8fr_1fr_1.5fr_1.2fr_0.7fr_0.7fr_1fr_1.2fr] gap-2 px-5 py-3 table-row"
             style={{ borderBottom:"1px solid var(--border-soft)" }}>
             <div className="flex items-center gap-1.5 min-w-0">
-              <BookOpen size={11} style={{ color:"var(--primary)", shrink:0 }}/>
+              <BookOpen size={11} className="shrink-0" style={{ color:"var(--primary)" }}/>
               <span className="text-xs font-semibold truncate" style={{ color:"var(--text-primary)" }}>
                 {exam.title}
               </span>
@@ -155,12 +155,12 @@ export default function ExamsPage() {
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>Duration (min)</label>
                     <input type="number" value={form.duration} min={15} max={180}
-                      onChange={e=>setForm(f=>({...f,duration:e.target.value}))} className="input-field"/>
+                      onChange={e=>setForm(f=>({...f,duration:Number(e.target.value)}))} className="input-field"/>
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>Questions</label>
                     <input type="number" value={form.questions} min={5} max={200}
-                      onChange={e=>setForm(f=>({...f,questions:e.target.value}))} className="input-field"/>
+                      onChange={e=>setForm(f=>({...f,questions:Number(e.target.value)}))} className="input-field"/>
                   </div>
                 </div>
                 <div>

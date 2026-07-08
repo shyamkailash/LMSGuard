@@ -123,7 +123,7 @@ function ExtraTimeModal({ issue, onConfirm, onClose }) {
 /* ── Retest Modal ─────────────────────────────────────────────────────── */
 function RetestModal({ issue, onConfirm, onClose }) {
   const [attempt,  setAttempt]  = useState("same");    // "same" | "new"
-  const [duration, setDuration] = useState("same");    // "same" | number
+  const [duration, setDuration] = useState<string | number>("same");    // "same" | number
 
   function handleConfirm() {
     onConfirm({ action:"allow_retest", attempt, duration, issue });

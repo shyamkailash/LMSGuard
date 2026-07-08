@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle, GraduationCap, LogOut, Clock, FileText, Zap, Home } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // Confetti particle generator
 const PARTICLES = Array.from({ length: 30 }, (_, i) => ({
@@ -33,7 +34,7 @@ export default function ExamCompletedPage() {
 
   function handleLogout() {
     sessionStorage.clear();
-    router.push("/student/login");
+    router.push("/login");
   }
 
   function handleHome() {
@@ -77,7 +78,7 @@ export default function ExamCompletedPage() {
 
       {/* Theme toggle */}
       <div className="absolute top-5 right-5">
-        
+        <ThemeToggle />
       </div>
 
       {/* Main card */}

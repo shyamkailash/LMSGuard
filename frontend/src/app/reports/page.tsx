@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
-import { ViolationTrendChart, ViolationTypesChart, RiskPieChart } from "@/components/Charts";
 import {
   FileText, Download, Users, AlertTriangle, CheckCircle,
   Zap, Printer, Share2, BarChart3, Shield, BookOpen,
@@ -268,8 +267,21 @@ export default function ReportsPage() {
                   <div className="rounded-xl p-3"
                     style={{ background:"var(--bg-deep)", border:"1px solid var(--border)" }}>
                     <p className="text-[10px] uppercase tracking-wider mb-2"
-                       style={{ color:"var(--text-muted)" }}>Violation Breakdown</p>
-                    <ViolationTypesChart/>
+                       style={{ color:"var(--text-muted)" }}>Live Summary</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label:"Students", value:totalStudents, color:"var(--primary)" },
+                        { label:"Violations", value:totalViolations, color:"var(--danger)" },
+                        { label:"Critical", value:criticalCount, color:"var(--danger)" },
+                        { label:"Safe", value:safeCount, color:"var(--success)" },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} className="rounded-lg p-2 text-center"
+                          style={{ background:"var(--card)", border:"1px solid var(--border)" }}>
+                          <p className="text-lg font-bold" style={{ color }}>{value}</p>
+                          <p className="text-[10px]" style={{ color:"var(--text-muted)" }}>{label}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button className="flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white rounded-xl"
@@ -295,36 +307,6 @@ export default function ReportsPage() {
           </AnimatePresence>
         </motion.div>
       </div>
-
-      {/* Analytics */}
-      <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.45 }}
-        className="rounded-2xl p-5"
-        style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold" style={{ color:"var(--text-primary)" }}>
-              Analytics — {sessionClass?.label}
-            </h3>
-            <p className="text-xs" style={{ color:"var(--text-muted)" }}>
-              {sessionExam?.title} only
-            </p>
-          </div>
-          <BarChart3 size={15} style={{ color:"var(--text-muted)" }}/>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[
-            { title:"Violation Trend",   chart:<ViolationTrendChart/> },
-            { title:"By Type",           chart:<ViolationTypesChart/> },
-            { title:"Risk Distribution", chart:<RiskPieChart/> },
-          ].map(({ title, chart }) => (
-            <div key={title}>
-              <p className="text-[11px] uppercase tracking-wider mb-2"
-                 style={{ color:"var(--text-muted)" }}>{title}</p>
-              {chart}
-            </div>
-          ))}
-        </div>
-      </motion.div>
     </DashboardLayout>
   );
 }

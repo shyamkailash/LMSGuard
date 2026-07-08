@@ -16,11 +16,20 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com"/>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+        {/* Inline theme init — runs before first paint to avoid flash of wrong theme */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var t = localStorage.getItem('lmsg_theme');
+              if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            } catch(e) {}
+          })();
+        `}} />
       </head>
       <body>{children}</body>
     </html>

@@ -250,7 +250,7 @@ function EventRow({ event }: { event: MonitoringEvent }) {
             Student ID: {event.student_id}
           </p>
 
- e Han         <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             Process: {event.app || event.process_name || "System"}
           </p>
 

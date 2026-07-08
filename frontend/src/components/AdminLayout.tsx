@@ -8,6 +8,8 @@ import {
   Monitor, AlertTriangle, BarChart3, Settings, ChevronLeft,
   ChevronRight, LogOut, Bell, ChevronDown, Building2, Layers
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
+import { getSession, clearSession } from "@/lib/session";
 
 const NAV_GROUPS = [
   {
@@ -51,18 +53,26 @@ export default function AdminLayout({ children, title, subtitle }) {
   const [collapsed, setCollapsed] = useState(false);
   const [notifs,    setNotifs]    = useState(5);
   const [admin,     setAdmin]     = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const pathname = usePathname();
   const router   = useRouter();
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("adminProfile");
-      if (raw) setAdmin(JSON.parse(raw));
-    } catch {}
+    // Route guard — admin only
+    // TODO (backend): Validate session token server-side
+    const session = getSession();
+    if (!session || session.role !== "admin") {
+      router.replace("/login");
+      return;
+    }
+    setAdmin({ name: session.name, role: "Administrator" });
+    setAuthReady(true);
   }, []);
 
   const displayName = admin?.name || "Admin";
   const initials    = displayName.split(" ").map(n=>n[0]).join("").slice(0,2);
+
+  if (!authReady) return null; // Prevent flash before redirect
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background:"var(--bg)" }}>
@@ -180,9 +190,9 @@ export default function AdminLayout({ children, title, subtitle }) {
 
         {/* Logout */}
         <div className="px-2 pb-4 pt-2 shrink-0" style={{ borderTop:"1px solid var(--border)" }}>
-          <Link href="/admin/login">
+          <Link href="/login">
             <motion.div whileHover={{ x: collapsed ? 0 : 3 }}
-              onClick={() => sessionStorage.clear()}
+              onClick={() => clearSession()}
               className="flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer
                 transition-all text-[var(--text-muted)] hover:text-[var(--danger)]
                 hover:bg-[var(--danger-muted)] group relative">
@@ -241,6 +251,8 @@ export default function AdminLayout({ children, title, subtitle }) {
                        color:"var(--primary)" }}>
               <Shield size={10}/> Full Control
             </div>
+            {/* Theme toggle */}
+            <ThemeToggle />
             {/* Notifs */}
             <motion.button whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
               onClick={() => setNotifs(0)}

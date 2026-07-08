@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import BackendLiveMonitoringPanel from "@/components/BackendLiveMonitoringPanel";
-import StatsCard from "@/components/StatsCard";
-import { ViolationTrendChart, RiskPieChart } from "@/components/Charts";
 import { onEvent } from "@/services/websocket";
 import {
   Users, BookOpen, AlertTriangle, Shield, Calendar,

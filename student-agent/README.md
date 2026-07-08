@@ -6,7 +6,7 @@ Python monitoring agent for LMSGuard-style exam monitoring.
 
 - Captures student screen
 - Compresses screenshot to JPEG
-- Sends screenshots to backend via WebSocket
+- Sends screenshots to backend via a built-in WebSocket client
 - Detects active foreground window
 - Detects blacklisted apps
 - Detects idle status
@@ -50,6 +50,11 @@ set AGENT_WS_URL=ws://127.0.0.1:8000/ws/student-agent
 set STUDENT_ID=student-001
 python main.py
 ```
+
+If you prefer to run without a virtual environment, make sure your Python has
+`Pillow` and `psutil` available. The WebSocket client is implemented with the
+Python standard library, and screen capture falls back to a generated frame
+when native desktop capture is unavailable.
 
 PowerShell:
 

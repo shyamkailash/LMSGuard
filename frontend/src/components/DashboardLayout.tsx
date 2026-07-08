@@ -8,6 +8,8 @@ import NetworkIssuePopup from "./NetworkIssuePopup";
 import { connectSocket, onEvent } from "@/services/websocket";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ThemeToggle from "./ThemeToggle";
+import { getSession, clearSession } from "@/lib/session";
 
 export default function DashboardLayout({ children, title, subtitle }) {
   const [collapsed,    setCollapsed]    = useState(false);
@@ -23,14 +25,19 @@ export default function DashboardLayout({ children, title, subtitle }) {
   const router = useRouter();
 
   useEffect(() => {
-    try {
-      const p = sessionStorage.getItem("invProfile");
-      const c = sessionStorage.getItem("invSelectedClass");
-      const e = sessionStorage.getItem("invSelectedExam");
-      if (p) setInvProfile(JSON.parse(p));
-      if (c) { const cls = JSON.parse(c); if (cls?.id) setSessionClass(cls); }
-      if (e) { const ex  = JSON.parse(e); if (ex?.id)  setSessionExam(ex);  }
-    } catch {}
+    // Route guard — invigilator or admin only
+    // TODO (backend): Validate session token server-side
+    const session = getSession();
+    if (!session || (session.role !== "invigilator" && session.role !== "admin")) {
+      router.replace("/login");
+      return;
+    }
+    setInvProfile({ name: session.name, id: session.user_id, role: session.role });
+
+    const clsRaw  = sessionStorage.getItem("invSelectedClass");
+    const examRaw = sessionStorage.getItem("invSelectedExam");
+    if (clsRaw) { const cls = JSON.parse(clsRaw); if (cls?.id) setSessionClass(cls); }
+    if (examRaw){ const ex  = JSON.parse(examRaw); if (ex?.id)  setSessionExam(ex);  }
 
     const assignedClass = (() => {
       try { const c = JSON.parse(sessionStorage.getItem("invSelectedClass")); return c?.id || "CSE-3A"; }
@@ -130,6 +137,8 @@ export default function DashboardLayout({ children, title, subtitle }) {
               {st.dot && <span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background:st.color }}/>}
               {st.label}
             </div>
+            {/* Theme toggle */}
+            <ThemeToggle />
 
             {/* Notifications */}
             <motion.button whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
@@ -160,7 +169,7 @@ export default function DashboardLayout({ children, title, subtitle }) {
               </div>
               <Link href="/login">
                 <motion.button whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
-                  onClick={() => sessionStorage.clear()}
+                  onClick={() => clearSession()}
                   className="w-7 h-7 rounded-lg flex items-center justify-center"
                   style={{ background:"var(--danger-soft)", color:"var(--danger)" }}
                   title="Logout">

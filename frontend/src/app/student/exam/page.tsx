@@ -4,14 +4,23 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock, ChevronLeft, ChevronRight, Flag, AlertTriangle,
-  CheckCircle, Circle, Send, BookOpen, GraduationCap
+  CheckCircle, Circle, Send, BookOpen, Shield, Lock, Loader2, Sparkles
 } from "lucide-react";
 import { MOCK_ASSESSMENTS, EXAM_QUESTIONS } from "@/data/studentData";
+import { getSession } from "@/lib/session";
+import { getStudentExamStatus, startStudentExam } from "@/lib/api";
 
 function ExamContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const examId = searchParams.get("id") || "EXAM001";
+  const [studentId, setStudentId] = useState("student-001");
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [startPassword, setStartPassword] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [verifyingAccess, setVerifyingAccess] = useState(false);
+  const [accessStatus, setAccessStatus] = useState<"WAITING" | "IN_EXAM" | "COMPLETED" | "BLOCKED">("WAITING");
 
   const exam = MOCK_ASSESSMENTS.find(e => e.id === examId) || MOCK_ASSESSMENTS[0];
   const questions = EXAM_QUESTIONS[examId] || EXAM_QUESTIONS.EXAM001;
@@ -27,9 +36,89 @@ function ExamContent() {
   const answered = Object.keys(answers).length;
   const total    = questions.length;
 
+  useEffect(() => {
+    const session = getSession();
+    if (!session || session.role !== "student") {
+      router.replace("/login");
+      return;
+    }
+
+    const resolvedStudentId = session.user_id || sessionStorage.getItem("user_id") || "student-001";
+    setStudentId(resolvedStudentId);
+
+    const savedExamId = sessionStorage.getItem("exam_id");
+    const savedStatus = sessionStorage.getItem("exam_status");
+    const savedVerified = sessionStorage.getItem("start_password_verified") === "true";
+    if (savedVerified && savedStatus === "IN_EXAM" && savedExamId === examId) {
+      setAccessGranted(true);
+      setAccessStatus("IN_EXAM");
+      setCheckingAccess(false);
+      return;
+    }
+
+    let active = true;
+    setCheckingAccess(true);
+    getStudentExamStatus(resolvedStudentId, examId)
+      .then((status) => {
+        if (!active) return;
+        setAccessStatus(status.status);
+        if (status.status === "IN_EXAM" && status.start_password_verified) {
+          setAccessGranted(true);
+          sessionStorage.setItem("exam_status", "IN_EXAM");
+          sessionStorage.setItem("exam_id", examId);
+          sessionStorage.setItem("start_password_verified", "true");
+        } else {
+          setAccessGranted(false);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setAccessGranted(false);
+        setAccessStatus("WAITING");
+      })
+      .finally(() => {
+        if (active) setCheckingAccess(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [examId, router]);
+
+  async function handleStartExamAccess() {
+    setAccessError("");
+    setVerifyingAccess(true);
+
+    try {
+      const result = await startStudentExam({
+        student_id: studentId,
+        exam_id: examId,
+        password: startPassword.trim(),
+      });
+
+      if (!result.success) {
+        setAccessGranted(false);
+        setAccessStatus(result.status || "BLOCKED");
+        setAccessError(result.message || "Invalid or expired start password.");
+        return;
+      }
+
+      sessionStorage.setItem("exam_status", "IN_EXAM");
+      sessionStorage.setItem("exam_id", examId);
+      sessionStorage.setItem("start_password_verified", "true");
+      setAccessGranted(true);
+      setAccessStatus("IN_EXAM");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid or expired start password.";
+      setAccessError(message.replace(/^\d+:/, ""));
+    } finally {
+      setVerifyingAccess(false);
+    }
+  }
+
   // Timer countdown
   useEffect(() => {
-    if (submitted) return;
+    if (!accessGranted || submitted) return;
     const id = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) { clearInterval(id); handleSubmit(); return 0; }
@@ -38,7 +127,104 @@ function ExamContent() {
     }, 1000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitted]);
+  }, [accessGranted, submitted]);
+
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-10 h-10 rounded-full border-2 border-t-[#16A34A]"
+          style={{ borderColor: "var(--border)", borderTopColor: "#16A34A" }} />
+      </div>
+    );
+  }
+
+  if (!accessGranted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--bg)" }}>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md rounded-3xl p-6"
+          style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "var(--shadow-xl)" }}
+        >
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--primary-muted)", color: "var(--primary)" }}>
+              <Lock size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--primary)" }}>
+                Start Exam Password Control
+              </p>
+              <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
+                Enter Start Exam Password
+              </h1>
+            </div>
+          </div>
+
+          <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+            Exam access is locked until your invigilator-approved password is verified.
+          </p>
+
+          <div className="mb-4 rounded-2xl p-4" style={{ background: "var(--bg-deep)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  Exam ID
+                </p>
+                <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{examId}</p>
+              </div>
+              <span className="badge badge-warning">Status: {accessStatus}</span>
+            </div>
+          </div>
+
+          <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+            Start Password
+          </label>
+          <input
+            value={startPassword}
+            onChange={(e) => {
+              setStartPassword(e.target.value);
+              setAccessError("");
+            }}
+            placeholder="EXAM-482913"
+            className="input-field !rounded-xl text-lg font-mono tracking-[0.15em]"
+          />
+
+          <AnimatePresence>
+            {accessError && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3 rounded-2xl px-4 py-3 text-sm"
+                style={{ background: "var(--danger-muted)", color: "var(--danger)", border: "1px solid var(--danger-border)" }}
+              >
+                {accessError}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={handleStartExamAccess}
+            disabled={verifyingAccess || !startPassword.trim()}
+            className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg,#16A34A,#15803D)" }}
+          >
+            {verifyingAccess ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+            Start Exam
+          </motion.button>
+
+          <div className="mt-4 flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <Shield size={12} />
+            Exam access verified after the correct password is entered.
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   function formatTime(secs) {
     const h = Math.floor(secs / 3600);

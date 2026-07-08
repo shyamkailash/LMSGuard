@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import BackendLiveMonitoringPanel from "@/components/BackendLiveMonitoringPanel";
+import ExamStartPasswordPanel from "@/components/ExamStartPasswordPanel";
 import { onEvent } from "@/services/websocket";
 import {
   Users, BookOpen, AlertTriangle, Shield, Calendar,
@@ -392,6 +393,13 @@ export default function DashboardPage() {
           : `${selectedClass?.label} · ${selectedExam?.title}`
       }
     >
+      <div className="mb-6">
+        <ExamStartPasswordPanel
+          defaultExamId={selectedExam?.id || ""}
+          defaultClassId={selectedClass?.id || ""}
+        />
+      </div>
+
       {/* ── Setup wizard wrapper ── */}
       {isSetup && (
         <div className="max-w-2xl mx-auto">

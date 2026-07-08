@@ -31,6 +31,13 @@ try:
         save_monitoring_event,
         seed_demo_data,
     )
+    from .exam_access import (
+        init_exam_access_tables,
+        generate_start_password,
+        get_active_start_password,
+        verify_start_password,
+        get_student_exam_status,
+    )
     from .live_monitoring_agent import LiveMonitoringAgent
 except ImportError:
     from security_controls import (
@@ -59,6 +66,13 @@ except ImportError:
         save_monitoring_event,
         seed_demo_data,
     )
+    from exam_access import (
+        init_exam_access_tables,
+        generate_start_password,
+        get_active_start_password,
+        verify_start_password,
+        get_student_exam_status,
+    )
     from live_monitoring_agent import LiveMonitoringAgent
 
 
@@ -67,6 +81,7 @@ app = FastAPI()
 init_db()
 seed_demo_data()
 init_security_controls()
+init_exam_access_tables()
 init_user_table()   # Create users table if not exists
 agent_events = []
 live_monitoring_agent = LiveMonitoringAgent()
@@ -125,6 +140,67 @@ async def update_admin_security_control(payload: dict):
 @app.get("/api/student/security-control/{student_id}")
 def student_security_control(student_id: str):
     return get_security_control(student_id)
+
+
+# ── Exam access endpoints ────────────────────────────────────────────────────
+
+@app.post("/api/invigilator/exam-password/generate")
+async def api_generate_start_password(payload: dict):
+    created_by_role = (payload.get("created_by_role") or "").strip().lower()
+    if created_by_role == "student":
+        raise HTTPException(status_code=403, detail="Students cannot generate start passwords.")
+
+    try:
+        password = generate_start_password(
+            exam_id=payload.get("exam_id") or "",
+            class_id=payload.get("class_id"),
+            created_by=payload.get("created_by") or "",
+            created_by_role=created_by_role,
+            expiry_minutes=payload.get("expiry_minutes", 30),
+        )
+        return {
+            "success": True,
+            "message": "Start exam password generated successfully",
+            **password,
+        }
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/invigilator/exam-password/{exam_id}")
+def api_get_active_start_password(exam_id: str):
+    password = get_active_start_password(exam_id)
+    if not password:
+        return {
+            "success": False,
+            "exam_id": exam_id,
+            "message": "No active start password found",
+        }
+    return {
+        "success": True,
+        "message": "Active start password found",
+        **password,
+    }
+
+
+@app.post("/api/student/exam/start")
+async def api_start_student_exam(payload: dict):
+    try:
+        result = verify_start_password(
+            student_id=payload.get("student_id") or "",
+            exam_id=payload.get("exam_id") or "",
+            password=payload.get("password") or "",
+        )
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/student/exam/status/{student_id}/{exam_id}")
+def api_get_student_exam_status(student_id: str, exam_id: str):
+    return get_student_exam_status(student_id, exam_id)
 
 
 # ── Auth endpoints ──────────────────────────────────────────────────────────

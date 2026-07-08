@@ -25,10 +25,10 @@ export default function DashboardLayout({ children, title, subtitle }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Route guard — invigilator or admin only
+    // Route guard — admin, teacher, or invigilator only
     // TODO (backend): Validate session token server-side
     const session = getSession();
-    if (!session || (session.role !== "invigilator" && session.role !== "admin")) {
+    if (!session || (session.role !== "invigilator" && session.role !== "admin" && session.role !== "teacher")) {
       router.replace("/login");
       return;
     }
@@ -165,7 +165,9 @@ export default function DashboardLayout({ children, title, subtitle }) {
               </div>
               <div className="hidden sm:block">
                 <p className="text-xs font-semibold leading-tight" style={{ color:"var(--text-primary)" }}>{displayName}</p>
-                <p className="text-[10px] leading-tight" style={{ color:"var(--primary)" }}>Invigilator</p>
+                <p className="text-[10px] leading-tight" style={{ color:"var(--primary)" }}>
+                  {(invProfile?.role || "invigilator").toString().replace(/^\w/, c => c.toUpperCase())}
+                </p>
               </div>
               <Link href="/login">
                 <motion.button whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}

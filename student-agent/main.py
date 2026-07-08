@@ -1,3 +1,4 @@
+from idle_detector import is_idle, get_idle_time
 from websocket_client import AgentWebSocketClient
 from window_detector import get_active_window
 from app_detector import check_app
@@ -30,7 +31,18 @@ while True:
         print(app_event)
 
 
+    # Idle detection
+    if is_idle(60):
+        idle_event = {
+            "type": "IDLE_DETECTED",
+            "idle_time": get_idle_time()
+        }
 
+        client.send(idle_event)
+        print(idle_event) 
+
+
+        
     # Screen capture
 
     image = capture_screen()

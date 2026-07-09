@@ -1,4 +1,4 @@
-import { Activity, BrainCircuit, GraduationCap, ShieldAlert } from "lucide-react";
+import { Activity, BrainCircuit, CalendarClock, GraduationCap, RadioTower, ShieldAlert } from "lucide-react";
 
 import { MainLayout } from "@/app/layouts/MainLayout";
 import { RiskBadge } from "@/components/common/RiskBadge";
@@ -7,27 +7,30 @@ import { AlertCard } from "@/components/cards/AlertCard";
 import { StatCard } from "@/components/cards/StatCard";
 import { AreaChart } from "@/components/charts/AreaChart";
 import { BarChart } from "@/components/charts/BarChart";
+import { ManagedAccountPanel } from "@/components/admin/ManagedAccountPanel";
 import { RiskChart } from "@/components/charts/RiskChart";
-import { alerts, departmentRisk, exams, riskTrend, stats } from "@/mock/platform";
+import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
+import { ExaminationSecurityPanel } from "@/components/settings/ExaminationSecurityPanel";
+import { alerts, calendarBlocks, departmentRisk, exams, notifications, riskTrend, stats } from "@/mock/platform";
 
 const icons = [GraduationCap, Activity, BrainCircuit, ShieldAlert];
 
 export default function DashboardPage() {
   return (
-    <MainLayout>
+    <MainLayout allowedRoles={["Admin"]}>
       <div className="space-y-6">
         <section className="aurora-panel overflow-hidden rounded-[2rem] p-6 lg:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
             <div>
               <StatusBadge tone="review">Aurora Intelligence active</StatusBadge>
               <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-tight text-balance text-zinc-50 lg:text-5xl">
-                Good afternoon, academic monitoring is stable across live exams.
+                <DashboardGreeting />
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-400">
                 AI inference, identity confidence, network telemetry, and evidence capture are synchronized for the current session.
               </p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
+            <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-white/10 dark:bg-black/20">
               <RiskChart score={92} label="Trust score" />
             </div>
           </div>
@@ -38,6 +41,8 @@ export default function DashboardPage() {
             <StatCard key={stat.label} {...stat} icon={icons[index]} />
           ))}
         </section>
+
+        <ManagedAccountPanel />
 
         <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <article className="aurora-card p-6">
@@ -58,6 +63,8 @@ export default function DashboardPage() {
             </div>
           </article>
         </section>
+
+        <ExaminationSecurityPanel />
 
         <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
           <article className="aurora-card p-6">
@@ -86,6 +93,57 @@ export default function DashboardPage() {
                       {exam.status}
                     </StatusBadge>
                   </div>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[0.8fr_0.8fr_1.1fr]">
+          <article className="aurora-card p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <CalendarClock className="size-5 text-cyan-200" />
+              <h2 className="text-xl font-semibold text-zinc-50">Exam calendar</h2>
+            </div>
+            <div className="space-y-3">
+              {calendarBlocks.map((block) => (
+                <div key={block.label} className="rounded-2xl border border-white/8 bg-white/[0.035] p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-zinc-500">{block.label}</span>
+                    <span className="text-zinc-300">{block.count} seats</span>
+                  </div>
+                  <p className="mt-2 font-medium text-zinc-50">{block.title}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+          <article className="aurora-card p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <RadioTower className="size-5 text-green-200" />
+              <h2 className="text-xl font-semibold text-zinc-50">System status</h2>
+            </div>
+            {["Inference API", "Socket gateway", "Storage queue", "LMS sync"].map((item, index) => (
+              <div key={item} className="mb-4 last:mb-0">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-300">{item}</span>
+                  <span className="text-green-300">{99 - index}%</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/8">
+                  <div className="h-full rounded-full bg-gradient-to-r from-green-300 via-cyan-300 to-blue-400" style={{ width: `${99 - index}%` }} />
+                </div>
+              </div>
+            ))}
+          </article>
+          <article className="aurora-card p-6">
+            <h2 className="text-xl font-semibold text-zinc-50">Activity feed</h2>
+            <div className="mt-5 space-y-3">
+              {notifications.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-white/8 bg-white/[0.035] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium text-zinc-100">{item.title}</p>
+                    <RiskBadge score={item.severity} />
+                  </div>
+                  <p className="mt-2 text-sm text-zinc-500">{item.body}</p>
                 </div>
               ))}
             </div>

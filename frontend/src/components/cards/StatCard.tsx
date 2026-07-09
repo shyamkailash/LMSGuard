@@ -12,11 +12,11 @@ type StatCardProps = {
 };
 
 const tones = {
-  violet: "from-violet-400/18 to-indigo-400/8 text-violet-100",
-  cyan: "from-cyan-400/16 to-indigo-400/8 text-cyan-100",
-  emerald: "from-emerald-400/16 to-cyan-400/8 text-emerald-100",
-  amber: "from-amber-400/18 to-violet-400/8 text-amber-100",
-  rose: "from-red-400/16 to-violet-400/8 text-red-100",
+  violet: "from-violet-100 to-indigo-50 text-violet-800 dark:from-violet-400/18 dark:to-indigo-400/8 dark:text-violet-100",
+  cyan: "from-cyan-100 to-indigo-50 text-cyan-800 dark:from-cyan-400/16 dark:to-indigo-400/8 dark:text-cyan-100",
+  emerald: "from-emerald-100 to-cyan-50 text-emerald-800 dark:from-emerald-400/16 dark:to-cyan-400/8 dark:text-emerald-100",
+  amber: "from-amber-100 to-violet-50 text-amber-800 dark:from-amber-400/18 dark:to-violet-400/8 dark:text-amber-100",
+  rose: "from-red-100 to-violet-50 text-red-800 dark:from-red-400/16 dark:to-violet-400/8 dark:text-red-100",
 };
 
 export function StatCard({

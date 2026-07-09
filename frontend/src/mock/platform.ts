@@ -177,3 +177,87 @@ export const settings = [
   { title: "AI sensitivity", value: "High", detail: "Balanced for university finals", progress: 74, tone: "cyan" },
   { title: "Risk threshold", value: "68", detail: "Escalates only sustained anomalies", progress: 68, tone: "amber" },
 ] as const;
+
+export const trustedInstitutions = [
+  "Northbridge University",
+  "Aster Institute",
+  "IITM Online",
+  "Verdant College",
+  "Kavya School of AI",
+  "Metro Business School",
+];
+
+export const workflowNodes = [
+  { title: "Student", detail: "Identity, device, and session baseline created." },
+  { title: "Screen Agent", detail: "Secure stream captures focus, windows, and clipboard intent." },
+  { title: "AI Detection", detail: "Vision and behavior models classify anomalies in real time." },
+  { title: "Risk Engine", detail: "Signals are weighted against exam policy and historic context." },
+  { title: "Alert", detail: "Invigilators receive severity, evidence, and suggested action." },
+  { title: "Report", detail: "Review packets preserve a defensible audit trail." },
+];
+
+export const detectionSignals = [
+  { label: "Face confidence", value: 98, tone: "cyan" },
+  { label: "Window focus", value: 86, tone: "amber" },
+  { label: "Audio anomaly", value: 14, tone: "emerald" },
+  { label: "Network drift", value: 31, tone: "blue" },
+];
+
+export const pricingPlans = [
+  {
+    name: "Launch",
+    price: "$399",
+    detail: "For departments running high-stakes online tests.",
+    features: ["1,000 monitored seats", "Live alerts", "Evidence reports", "Email support"],
+  },
+  {
+    name: "Institution",
+    price: "$1,499",
+    detail: "For universities standardizing exam integrity.",
+    features: ["10,000 monitored seats", "LMS integrations", "Advanced risk policy", "Priority support"],
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    detail: "For multi-campus compliance and private deployments.",
+    features: ["Dedicated inference lanes", "SAML and API keys", "Data residency", "Security reviews"],
+  },
+];
+
+export const faqs = [
+  ["Can LMSGuard integrate with our LMS?", "Yes. The product is designed around LMS connectors, roster sync, exam schedules, and export-ready gradebook workflows."],
+  ["Does it interrupt students unnecessarily?", "Risk scoring is evidence-led. LMSGuard highlights sustained anomalies and gives invigilators context before escalation."],
+  ["What evidence is captured?", "Screens, window focus changes, policy events, identity confidence, network quality, and invigilator notes can be bundled into reports."],
+  ["Is the interface ready for mobile?", "Every core surface adapts to laptop, tablet, and mobile layouts with keyboard-accessible controls."],
+];
+
+export const notifications = [
+  { id: "N-501", title: "Critical identity alert", body: "Nila Thomas has a secondary face confidence spike.", time: "Now", read: false, severity: 91 },
+  { id: "N-497", title: "Network quality recovered", body: "ECE room stream returned to adaptive HD.", time: "6 min", read: false, severity: 34 },
+  { id: "N-488", title: "Exam started", body: "Financial Analytics opened for 98 students.", time: "18 min", read: true, severity: 22 },
+  { id: "N-472", title: "Review packet signed", body: "Cloud Security report approved by Prof. Menon.", time: "41 min", read: true, severity: 48 },
+];
+
+export const invigilators = [
+  { name: "Dr. Kavya Raman", role: "Lead Invigilator", availability: "Live", exams: 4, accuracy: 97, load: 82 },
+  { name: "Prof. Meera Shah", role: "Electronics Faculty", availability: "Live", exams: 3, accuracy: 95, load: 68 },
+  { name: "Dr. Imran Ali", role: "Management Faculty", availability: "Scheduled", exams: 2, accuracy: 93, load: 44 },
+  { name: "Prof. Sanjay Menon", role: "Review Specialist", availability: "Review", exams: 5, accuracy: 98, load: 76 },
+];
+
+export const reportRows = students.slice(0, 8).map((student, index) => ({
+  id: `RP-${String(index + 28).padStart(3, "0")}`,
+  student: student.name,
+  exam: student.exam,
+  department: student.department,
+  risk: student.riskScore,
+  packets: student.violations + 1,
+  status: index % 3 === 0 ? "Escalated" : index % 3 === 1 ? "Ready" : "Reviewed",
+}));
+
+export const calendarBlocks = [
+  { label: "09:00", title: "Distributed Systems", count: 186, tone: "cyan" },
+  { label: "11:30", title: "Digital Signal Processing", count: 142, tone: "violet" },
+  { label: "15:30", title: "Financial Analytics", count: 98, tone: "emerald" },
+  { label: "17:00", title: "Machine Learning", count: 212, tone: "amber" },
+];

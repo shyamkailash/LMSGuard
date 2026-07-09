@@ -3,7 +3,7 @@ import { MonitoringWorkspace } from "@/components/monitoring/MonitoringWorkspace
 
 export default function LiveMonitoringPage() {
   return (
-    <MainLayout>
+    <MainLayout allowedRoles={["Admin", "Invigilator"]}>
       <MonitoringWorkspace />
     </MainLayout>
   );

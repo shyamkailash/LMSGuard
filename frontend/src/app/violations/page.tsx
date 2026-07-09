@@ -1,4 +1,4 @@
-import { CheckCircle2, Download, Filter, Search } from "lucide-react";
+import { BellRing, CheckCircle2, Download, Filter, Search, Volume2 } from "lucide-react";
 
 import { MainLayout } from "@/app/layouts/MainLayout";
 import { RiskBadge } from "@/components/common/RiskBadge";
@@ -8,7 +8,7 @@ import { alerts } from "@/mock/platform";
 
 export default function Violations() {
   return (
-    <MainLayout>
+    <MainLayout allowedRoles={["Admin", "Invigilator"]}>
       <div className="space-y-6">
         <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
@@ -19,6 +19,26 @@ export default function Violations() {
           <div className="flex gap-2">
             <Button variant="outline"><Filter className="size-4" /> Filter</Button>
             <Button variant="outline"><Download className="size-4" /> Export</Button>
+          </div>
+        </section>
+
+        <section className="premium-border aurora-panel rounded-[2rem] p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid size-12 place-items-center rounded-2xl bg-red-400/10 text-red-100 ring-1 ring-red-300/20">
+                <BellRing className="size-5" />
+              </div>
+              <div>
+                <p className="text-sm text-red-200">Real-time alert</p>
+                <h2 className="mt-1 text-2xl font-semibold text-zinc-50">Repeated focus change detected</h2>
+                <p className="mt-2 text-sm text-zinc-400">Aarav Mehta | Distributed Systems | Timestamp 14:22:08 | Severity high</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline"><Volume2 className="size-4" /> Sound on</Button>
+              <Button variant="outline">Dismiss</Button>
+              <Button className="bg-red-500 hover:bg-red-400">View case</Button>
+            </div>
           </div>
         </section>
 

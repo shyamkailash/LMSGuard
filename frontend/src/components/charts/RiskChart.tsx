@@ -12,10 +12,10 @@ export function RiskChart({ score, label }: RiskChartProps) {
           background: `conic-gradient(#7c3aed ${score * 3.6}deg, rgb(255 255 255 / 0.08) 0deg)`,
         }}
       />
-      <div className="absolute inset-2 rounded-full bg-[#111119]" />
+      <div className="absolute inset-2 rounded-full bg-white shadow-inner dark:bg-[#111119]" />
       <div className="relative text-center">
-        <p className="text-4xl font-semibold text-zinc-50">{score}</p>
-        <p className="mt-1 text-xs text-zinc-500">{label}</p>
+        <p className="text-4xl font-semibold text-slate-950 dark:text-zinc-50">{score}</p>
+        <p className="mt-1 text-xs text-slate-700 dark:text-zinc-500">{label}</p>
       </div>
     </div>
   );

@@ -1,22 +1,61 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { FormEvent } from "react";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Building2, CheckCircle2, KeyRound, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CheckCircle2, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
-
-const steps = [
-  { title: "Basic Information", icon: UserRound },
-  { title: "College Details", icon: Building2 },
-  { title: "Security", icon: KeyRound },
-  { title: "Verification", icon: CheckCircle2 },
-];
+import { getFriendlyAuthError, signUpWithEmail } from "@/services/authService";
 
 export default function SignupPage() {
-  const [step, setStep] = useState(0);
-  const Icon = steps[step].icon;
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [department, setDepartment] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  async function submitSignup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError("Please accept the security and data processing terms.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await signUpWithEmail({
+        name,
+        email,
+        password,
+        role: "Admin",
+        institution,
+        department,
+      });
+      setSuccess("Account created. You can login now; verify the email link when it reaches your inbox.");
+      window.setTimeout(() => router.push("/login"), 1500);
+    } catch (authError) {
+      setError(getFriendlyAuthError(authError));
+      setLoading(false);
+    }
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden px-5 py-6">
@@ -30,55 +69,69 @@ export default function SignupPage() {
               Back to login
             </Link>
           </div>
-          <div className="mt-10 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
+
+          <div className="mt-10 grid gap-8 lg:grid-cols-[0.75fr_1.25fr]">
             <aside className="space-y-4">
-              {steps.map((item, index) => {
-                const StepIcon = item.icon;
-                const active = index === step;
-                const complete = index < step;
+              {[
+                [UserRound, "Identity", "Name, email, and role"],
+                [Building2, "Institution", "School and department"],
+                [KeyRound, "Security", "Password and terms"],
+                [CheckCircle2, "Verification", "Email verification optional"],
+              ].map(([Icon, title, detail]) => {
+                const TileIcon = Icon as typeof UserRound;
                 return (
-                  <button
-                    key={item.title}
-                    type="button"
-                    onClick={() => setStep(index)}
-                    className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                      active
-                        ? "border-violet-300/25 bg-violet-400/12 text-zinc-50"
-                        : "border-white/8 bg-white/[0.035] text-zinc-400 hover:bg-white/[0.055]"
-                    }`}
-                  >
-                    <span className="grid size-9 place-items-center rounded-xl bg-white/7">
-                      <StepIcon className="size-4" />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-medium">{item.title}</span>
-                      <span className="text-xs text-zinc-500">{complete ? "Complete" : `Step ${index + 1}`}</span>
-                    </span>
-                  </button>
+                  <div key={title as string} className="rounded-2xl border border-white/8 bg-white/[0.035] p-4">
+                    <TileIcon className="size-5 text-cyan-200" />
+                    <p className="mt-3 font-medium text-zinc-50">{title as string}</p>
+                    <p className="mt-1 text-sm text-zinc-500">{detail as string}</p>
+                  </div>
                 );
               })}
             </aside>
-            <form className="rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-6">
+
+            <form className="rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-6" onSubmit={submitSignup}>
               <div className="mb-8 flex items-center gap-4">
-                <div className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-violet-400/20 to-cyan-400/10 text-violet-100 ring-1 ring-violet-300/20">
-                  <Icon className="size-5" />
+                <div className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-blue-400/20 to-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
+                  <ShieldCheck className="size-5" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-semibold text-zinc-50">{steps[step].title}</h1>
-                  <p className="mt-1 text-sm text-zinc-400">Set up your LMSGuard institution workspace.</p>
+                  <h1 className="text-3xl font-semibold text-zinc-50">Create LMSGuard account</h1>
+                  <p className="mt-1 text-sm text-zinc-400">Admin accounts are created here. Student and Invigilator IDs are created from the Admin dashboard.</p>
                 </div>
               </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
-                <input className="aurora-input" placeholder={step === 0 ? "Full name" : step === 1 ? "College name" : step === 2 ? "Password" : "Verification code"} />
-                <input className="aurora-input" placeholder={step === 0 ? "Institution email" : step === 1 ? "Department count" : step === 2 ? "Confirm password" : "Authorized contact"} />
-                <input className="aurora-input sm:col-span-2" placeholder={step === 0 ? "Role" : step === 1 ? "Accreditation ID" : step === 2 ? "Recovery email" : "Admin approval reference"} />
+                <input required className="aurora-input" placeholder="Full name" value={name} onChange={(event) => setName(event.target.value)} />
+                <span className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+                  <input required className="aurora-input pl-10" type="email" placeholder="admin@university.edu" value={email} onChange={(event) => setEmail(event.target.value)} />
+                </span>
+                <input className="aurora-input" value="Admin" readOnly />
+                <input required className="aurora-input" placeholder="Institution" value={institution} onChange={(event) => setInstitution(event.target.value)} />
+                <input required className="aurora-input" placeholder="Department" value={department} onChange={(event) => setDepartment(event.target.value)} />
+                <input required minLength={6} className="aurora-input" type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                <input required minLength={6} className="aurora-input sm:col-span-2" type="password" placeholder="Confirm password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
               </div>
-              <div className="mt-8 flex justify-between gap-3">
-                <Button type="button" variant="outline" onClick={() => setStep(Math.max(0, step - 1))}>
-                  Previous
+
+              <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.035] p-3 text-sm text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(event) => setAcceptedTerms(event.target.checked)}
+                  className="mt-0.5 size-4 rounded border-white/10 bg-white/5 accent-cyan-500"
+                />
+                <span>I agree to LMSGuard security, data processing, and institutional administrator terms.</span>
+              </label>
+
+              {error ? <p className="mt-5 rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-sm text-red-100">{error}</p> : null}
+              {success ? <p className="mt-5 rounded-xl border border-green-300/20 bg-green-400/10 px-3 py-2 text-sm text-green-100">{success}</p> : null}
+
+              <div className="mt-8 flex justify-end gap-3">
+                <Button type="button" variant="outline" asChild>
+                  <Link href="/login">Cancel</Link>
                 </Button>
-                <Button type="button" onClick={() => setStep(Math.min(steps.length - 1, step + 1))} className="bg-violet-500 hover:bg-violet-400">
-                  {step === steps.length - 1 ? "Finish setup" : "Continue"}
+                <Button type="submit" disabled={loading} className="bg-blue-500 hover:bg-blue-400">
+                  {loading ? "Creating account" : "Create account"}
                   <ArrowRight className="size-4" />
                 </Button>
               </div>

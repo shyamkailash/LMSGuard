@@ -1,19 +1,31 @@
+"use client";
+
 import { Bell, CalendarClock, CheckCircle2, Clock, MonitorCheck } from "lucide-react";
 
 import { MainLayout } from "@/app/layouts/MainLayout";
 import { MetricCard } from "@/components/cards/MetricCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import {
+  StudentExamSummary,
+  StudentNotificationsPanel,
+  StudentWaitingRoomPanel,
+} from "@/components/student/StudentExamPanels";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function StudentDashboardPage() {
+  const { userProfile } = useAuth();
+  const studentName = userProfile?.name || "Student";
+  const studentId = userProfile?.managedId || userProfile?.studentID || userProfile?.registerNumber || "";
+
   return (
-    <MainLayout>
+    <MainLayout allowedRoles={["Student"]}>
       <div className="space-y-6">
         <section className="aurora-panel rounded-[2rem] p-6">
           <StatusBadge tone="online">Monitoring ready</StatusBadge>
-          <h1 className="mt-4 text-4xl font-semibold text-zinc-50">Student exam desk</h1>
+          <h1 className="mt-4 text-4xl font-semibold text-zinc-50">{studentName} exam desk</h1>
           <p className="mt-3 max-w-2xl text-zinc-400">
-            Your current exam status, upcoming schedule, and monitoring readiness are shown here.
+            {studentId ? `Student ID: ${studentId}. ` : ""}Your current exam status, upcoming schedule, and monitoring readiness are shown here.
           </p>
         </section>
 
@@ -23,6 +35,8 @@ export default function StudentDashboardPage() {
           <MetricCard title="Monitoring" value="Stable" detail="Camera, screen, and network online" progress={88} tone="cyan" />
           <MetricCard title="History" value="0" detail="No open violations" progress={8} tone="emerald" />
         </section>
+
+        <StudentWaitingRoomPanel />
 
         <section className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
           <article className="aurora-card p-6">
@@ -70,6 +84,10 @@ export default function StudentDashboardPage() {
             </div>
           </article>
         </section>
+
+        <StudentExamSummary mode="upcoming" />
+
+        <StudentNotificationsPanel />
       </div>
     </MainLayout>
   );

@@ -1,4 +1,4 @@
-import { Ban, Gauge, Globe2, MonitorCheck, Save } from "lucide-react";
+import { Ban, BellRing, Gauge, Globe2, KeyRound, Languages, MonitorCheck, Save, ShieldCheck } from "lucide-react";
 
 import { MainLayout } from "@/app/layouts/MainLayout";
 import { MetricCard } from "@/components/cards/MetricCard";
@@ -65,6 +65,33 @@ export default function SettingsPage() {
               </label>
             ))}
           </div>
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-2">
+          {[
+            [ShieldCheck, "Security", "SSO required, MFA enforced, session timeout 30 minutes"],
+            [BellRing, "Notifications", "High severity sound, email digest, Slack webhook ready"],
+            [KeyRound, "API keys", "Roster sync key, reporting key, proctoring agent token"],
+            [Languages, "Language", "English primary, Hindi support enabled for student notices"],
+          ].map(([Icon, title, detail]) => {
+            const TileIcon = Icon as typeof ShieldCheck;
+            return (
+              <article key={title as string} className="aurora-card p-5">
+                <div className="flex items-start gap-4">
+                  <div className="grid size-11 place-items-center rounded-2xl bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
+                    <TileIcon className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="font-semibold text-zinc-50">{title as string}</h2>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">{detail as string}</p>
+                    <button type="button" className="mt-4 rounded-xl border border-white/10 px-3 py-2 text-sm text-zinc-300 transition hover:border-cyan-300/20 hover:text-white">
+                      Configure
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </section>
       </div>
     </MainLayout>

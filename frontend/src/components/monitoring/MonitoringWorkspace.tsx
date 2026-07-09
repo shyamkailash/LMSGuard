@@ -22,11 +22,15 @@ import type { StudentMonitor } from "@/mock/platform";
 import { students } from "@/mock/platform";
 
 const riskOptions = ["all", "elevated", "stable"] as const;
+type GridSize = "comfortable" | "compact";
 
 export function MonitoringWorkspace() {
   const [query, setQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState<(typeof riskOptions)[number]>("all");
-  const [selected, setSelected] = useState<StudentMonitor | null>(students[1]);
+  const [selected, setSelected] = useState<StudentMonitor | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [gridSize, setGridSize] = useState<GridSize>("comfortable");
+  const [refreshCount, setRefreshCount] = useState(0);
 
   const visibleStudents = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -54,10 +58,10 @@ export function MonitoringWorkspace() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline"><Filter className="size-4" /> Filters</Button>
-          <Button variant="outline"><Grid3X3 className="size-4" /> Grid</Button>
-          <Button variant="outline"><RefreshCw className="size-4" /> Refresh</Button>
-          <Button className="bg-violet-500 hover:bg-violet-400"><Expand className="size-4" /> Fullscreen</Button>
+          <Button variant="outline" onClick={() => setFiltersOpen((value) => !value)}><Filter className="size-4" /> Filters</Button>
+          <Button variant="outline" onClick={() => setGridSize((value) => value === "comfortable" ? "compact" : "comfortable")}><Grid3X3 className="size-4" /> {gridSize === "comfortable" ? "Compact" : "Comfort"}</Button>
+          <Button variant="outline" onClick={() => setRefreshCount((value) => value + 1)}><RefreshCw className="size-4" /> Refresh</Button>
+          <Button className="bg-violet-500 hover:bg-violet-400" onClick={() => document.documentElement.requestFullscreen?.()}><Expand className="size-4" /> Fullscreen</Button>
         </div>
       </section>
 
@@ -90,7 +94,42 @@ export function MonitoringWorkspace() {
         <StatusBadge tone="online">{visibleStudents.length} visible</StatusBadge>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      {filtersOpen ? (
+        <motion.section
+          className="aurora-panel grid gap-3 rounded-3xl p-4 md:grid-cols-4"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {["CSE", "ECE", "IT", "MBA"].map((department) => (
+            <button
+              key={department}
+              type="button"
+              onClick={() => setQuery(department)}
+              className="rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-3 text-left text-sm text-zinc-300 transition hover:border-cyan-300/20 hover:text-white"
+            >
+              {department} department
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setRiskFilter("all");
+            }}
+            className="rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-3 text-left text-sm text-zinc-300 transition hover:border-cyan-300/20 hover:text-white md:col-span-4"
+          >
+            Clear filters
+          </button>
+        </motion.section>
+      ) : null}
+
+      {refreshCount > 0 ? (
+        <div className="rounded-2xl border border-green-300/20 bg-green-400/10 px-4 py-3 text-sm text-green-100">
+          Live grid refreshed {refreshCount} time{refreshCount === 1 ? "" : "s"}.
+        </div>
+      ) : null}
+
+      <section className={`grid gap-4 md:grid-cols-2 ${gridSize === "compact" ? "2xl:grid-cols-4" : "2xl:grid-cols-3"}`}>
         {visibleStudents.map((student, index) => (
           <StudentCard key={student.id} student={student} index={index} onView={setSelected} />
         ))}

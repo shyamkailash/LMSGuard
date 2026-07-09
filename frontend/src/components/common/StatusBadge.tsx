@@ -11,11 +11,11 @@ type StatusBadgeProps = {
 };
 
 const toneStyles: Record<StatusTone, string> = {
-  online: "bg-emerald-400/10 text-emerald-100 ring-emerald-300/20",
-  review: "bg-violet-400/10 text-violet-100 ring-violet-300/20",
-  warning: "bg-amber-400/10 text-amber-100 ring-amber-300/20",
-  offline: "bg-red-400/10 text-red-100 ring-red-300/20",
-  neutral: "bg-white/7 text-zinc-200 ring-white/10",
+  online: "bg-emerald-100 text-emerald-800 ring-emerald-300/60 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-emerald-300/20",
+  review: "bg-violet-100 text-violet-800 ring-violet-300/60 dark:bg-violet-400/10 dark:text-violet-100 dark:ring-violet-300/20",
+  warning: "bg-amber-100 text-amber-800 ring-amber-300/60 dark:bg-amber-400/10 dark:text-amber-100 dark:ring-amber-300/20",
+  offline: "bg-red-100 text-red-800 ring-red-300/60 dark:bg-red-400/10 dark:text-red-100 dark:ring-red-300/20",
+  neutral: "bg-slate-100 text-slate-800 ring-slate-300/70 dark:bg-white/7 dark:text-zinc-200 dark:ring-white/10",
 };
 
 export function StatusBadge({

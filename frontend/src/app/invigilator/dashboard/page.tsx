@@ -5,6 +5,11 @@ import { AlertCard } from "@/components/cards/AlertCard";
 import { StatCard } from "@/components/cards/StatCard";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import {
+  CompletedStudentsQueue,
+  InvigilatorAttendancePanel,
+  InvigilatorExamControlPanel,
+} from "@/components/invigilator/InvigilatorPanels";
 import { Button } from "@/components/ui/button";
 import { alerts, exams, students } from "@/mock/platform";
 
@@ -12,7 +17,7 @@ export default function InvigilatorDashboardPage() {
   const focusedStudents = students.slice(0, 6);
 
   return (
-    <MainLayout>
+    <MainLayout allowedRoles={["Invigilator"]}>
       <div className="space-y-6">
         <section className="aurora-panel rounded-[2rem] p-6">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -33,6 +38,10 @@ export default function InvigilatorDashboardPage() {
           <StatCard label="AI review lanes" value="12" change="All calibrated" icon={RadioTower} tone="emerald" />
           <StatCard label="Streams healthy" value="97%" change="Adaptive HD active" icon={MonitorDot} tone="cyan" />
         </section>
+
+        <InvigilatorExamControlPanel />
+
+        <InvigilatorAttendancePanel />
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <article className="aurora-card p-6">
@@ -65,6 +74,8 @@ export default function InvigilatorDashboardPage() {
             </div>
           </article>
         </section>
+
+        <CompletedStudentsQueue />
 
         <section className="aurora-card p-6">
           <h2 className="text-xl font-semibold text-zinc-50">Current exams</h2>

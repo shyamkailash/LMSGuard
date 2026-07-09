@@ -37,6 +37,21 @@ from security_controls import (
 )
 from live_monitoring_agent import LiveMonitoringAgent
 
+from exam_access import (
+    init_exam_access_tables,
+    teacher_start_exam,
+    student_join_exam_lobby,
+    student_heartbeat,
+    student_confirm_start,
+    get_student_exam_status,
+    teacher_quit_student,
+    teacher_quit_all_students,
+    get_exam_dashboard_summary,
+    get_exam_students,
+    submit_code
+)
+from pydantic import BaseModel
+
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 # Create all SQLAlchemy ORM tables (users, departments, classes, exams …)
@@ -47,6 +62,7 @@ models.Base.metadata.create_all(bind=engine)
 init_db()
 seed_demo_data()
 init_security_controls()
+init_exam_access_tables()
 
 # Seed ORM demo data (users, academic structure) if DB is empty
 with SessionLocal() as _seed_db:
@@ -318,6 +334,111 @@ def reports_summary(_: dict = Depends(require_role("admin", "invigilator"))):
         "high_risk_violations": high,
         "medium_risk_violations": len(alerts) - high,
     }
+
+# ── Exam Access / Controls ───────────────────────────────────────────────────
+
+class StartExamRequest(BaseModel):
+    exam_id: str
+    exam_name: str
+    class_id: str
+    created_by: str
+    created_by_role: str
+
+@app.post("/api/exam/start")
+def api_start_exam(req: StartExamRequest):
+    teacher_start_exam(req.exam_id, req.class_id, req.created_by, req.created_by_role)
+    return {
+        "success": True,
+        "message": "Exam started successfully",
+        "exam_id": req.exam_id,
+        "start_status": "STARTED"
+    }
+
+class JoinLobbyRequest(BaseModel):
+    student_id: str
+    roll_number: str
+    student_name: str
+    exam_id: str
+    class_id: str
+
+@app.post("/api/student/exam/join")
+def api_student_join(req: JoinLobbyRequest):
+    student_join_exam_lobby(req.student_id, req.roll_number, req.student_name, req.exam_id, req.class_id)
+    return {
+        "success": True,
+        "status": "WAITING_START",
+        "message": "Student joined exam lobby"
+    }
+
+@app.get("/api/student/exam/status/{exam_id}/{roll_number}")
+def api_student_status(exam_id: str, roll_number: str):
+    return get_student_exam_status("", roll_number, exam_id)
+
+class ConfirmStartRequest(BaseModel):
+    student_id: str
+    roll_number: str
+    exam_id: str
+
+@app.post("/api/student/exam/confirm-start")
+def api_student_confirm_start(req: ConfirmStartRequest):
+    student_confirm_start(req.student_id, req.roll_number, req.exam_id)
+    return {
+        "success": True,
+        "status": "IN_EXAM",
+        "message": "Exam access confirmed"
+    }
+
+class HeartbeatRequest(BaseModel):
+    student_id: str
+    roll_number: str
+    exam_id: str
+
+@app.post("/api/student/exam/heartbeat")
+def api_student_heartbeat(req: HeartbeatRequest):
+    student_heartbeat(req.student_id, req.roll_number, req.exam_id)
+    return {"success": True}
+
+@app.get("/api/exam/dashboard-summary/{exam_id}")
+def api_exam_dashboard_summary(exam_id: str):
+    return get_exam_dashboard_summary(exam_id)
+
+@app.get("/api/exam/students/{exam_id}")
+def api_exam_students(exam_id: str):
+    return get_exam_students(exam_id)
+
+class QuitStudentRequest(BaseModel):
+    exam_id: str
+    roll_number: str
+    approved_by: str
+    approved_by_role: str
+
+@app.post("/api/exam/quit-student")
+def api_quit_student(req: QuitStudentRequest):
+    teacher_quit_student(req.exam_id, req.roll_number, req.approved_by, req.approved_by_role)
+    return {"success": True}
+
+class QuitAllRequest(BaseModel):
+    exam_id: str
+    approved_by: str
+    approved_by_role: str
+
+@app.post("/api/exam/quit-all")
+def api_quit_all(req: QuitAllRequest):
+    teacher_quit_all_students(req.exam_id, req.approved_by, req.approved_by_role)
+    return {"success": True}
+
+class SubmitCodeRequest(BaseModel):
+    exam_id: str
+    roll_number: str
+    question_id: str
+    language: str
+    code: str
+    result_status: str
+
+@app.post("/api/student/exam/submit-code")
+def api_submit_code(req: SubmitCodeRequest):
+    submit_code(req.exam_id, req.roll_number, req.question_id, req.language, req.code, req.result_status)
+    return {"success": True}
 
 
 # ── WebSocket — Student Agent ─────────────────────────────────────────────────

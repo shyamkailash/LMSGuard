@@ -4,13 +4,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import { onEvent } from "@/services/websocket";
+import type { AvailableClass, AvailableExam, ViolationRecord } from "@/types";
 import { CLASS_VIOLATIONS } from "@/data/invigilatorData";
 import {
   AlertTriangle, Search, Download, Eye,
   CheckCircle, Clock, MessageSquare, Shield, AlertCircle
 } from "lucide-react";
 
-const SEV_CFG = {
+const SEV_CFG: Record<string, { cls: string; label: string; dot: string }> = {
   critical: { cls:"badge-danger",  label:"Critical", dot:"var(--danger)"  },
   warning:  { cls:"badge-warning", label:"Warning",  dot:"var(--warning)" },
   medium:   { cls:"badge-warning", label:"Medium",   dot:"var(--warning)" },
@@ -18,15 +19,15 @@ const SEV_CFG = {
 
 export default function ViolationsPage() {
   const router = useRouter();
-  const [sessionClass, setSessionClass] = useState(null);
-  const [sessionExam,  setSessionExam]  = useState(null);
-  const [violations,   setViolations]   = useState([]);
+  const [sessionClass, setSessionClass] = useState<AvailableClass | null>(null);
+  const [sessionExam,  setSessionExam]  = useState<AvailableExam | null>(null);
+  const [violations,   setViolations]   = useState<ViolationRecord[]>([]);
   const [search,       setSearch]       = useState("");
   const [sevFilter,    setSevFilter]    = useState("all");
   const [sort,         setSort]         = useState("newest");
   const [dismissed,    setDismissed]    = useState(new Set());
   const [remarked,     setRemarked]     = useState({});
-  const [remarkOpen,   setRemarkOpen]   = useState(null);
+  const [remarkOpen,   setRemarkOpen]   = useState<string | null>(null);
   const [ready,        setReady]        = useState(false);
 
   useEffect(() => {
@@ -200,7 +201,7 @@ export default function ViolationsPage() {
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1B4D1E] to-[#F5C800]
                                     flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                      {v.studentName?.split(" ").map((n: string) => n[0]).join("").slice(0,2)}
+                      {v.studentName?.split(" ").map((n) => n[0]).join("").slice(0,2)}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color:"var(--text-primary)" }}>
@@ -302,8 +303,8 @@ export default function ViolationsPage() {
             </p>
             <button onClick={() => setDismissed(new Set(violations.map(v=>v.id)))}
               className="text-xs transition-colors" style={{ color:"var(--text-muted)" }}
-              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color="var(--text-primary)"}
-              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color="var(--text-muted)"}>
+              onMouseEnter={e => (e.currentTarget.style.color="var(--text-primary)")}
+              onMouseLeave={e => (e.currentTarget.style.color="var(--text-muted)")}>
               Dismiss all
             </button>
           </div>

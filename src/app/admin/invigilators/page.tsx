@@ -9,7 +9,7 @@ export default function InvigilatorsPage() {
   const [search,      setSearch]      = useState("");
   const [filter,      setFilter]      = useState("all");
   const [showModal,   setShowModal]   = useState(false);
-  const [showPerm,    setShowPerm]    = useState(null); // invigilator id for perm modal
+  const [showPerm, setShowPerm] = useState<string | null>(null); // invigilator id for perm modal
   const [removed,     setRemoved]     = useState(new Set());
   const [form,        setForm]        = useState({ name:"", email:"", dept:"", classes:[] });
   const [saved,       setSaved]       = useState(false);

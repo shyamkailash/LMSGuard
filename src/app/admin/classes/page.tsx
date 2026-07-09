@@ -7,7 +7,7 @@ import { Layers, Plus, Pencil, Trash2, Users, X, CheckCircle, ChevronRight, Arro
 
 export default function ClassesPage() {
   const [showModal,    setShowModal]    = useState(false);
-  const [viewClass,    setViewClass]    = useState(null); // class id for slide panel
+  const [viewClass, setViewClass] = useState<string | null>(null); // class id for slide panel
   const [form,         setForm]         = useState({ name:"", dept:"", year:"3rd", section:"A" });
   const [saved,        setSaved]        = useState(false);
 

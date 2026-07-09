@@ -9,7 +9,7 @@ export const ADMIN_ACCOUNTS : AdminAccount[] = [
   { id:"ADM002", name:"Dr. Meena Rao",   email:"meena.rao@college.edu",     avatar:"MR", role:"Dept Admin"  },
 ];
 
-export function getAdminByEmail(email) {
+export function getAdminByEmail(email: string): AdminAccount {
   return ADMIN_ACCOUNTS.find(a => a.email.toLowerCase() === email.toLowerCase()) ?? ADMIN_ACCOUNTS[0];
 }
 

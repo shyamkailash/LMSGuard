@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
+import type React from "react";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Bell, Shield, Monitor, Cpu, Save, X, Plus, Users, BookOpen } from "lucide-react";
 
-function Toggle({ on, onToggle }) {
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     <motion.button whileTap={{ scale:0.92 }} onClick={onToggle}
       className="relative w-10 h-5 rounded-full transition-colors shrink-0"
@@ -20,9 +21,11 @@ function Toggle({ on, onToggle }) {
 
 const DEFAULT_BLOCKED = ["VS Code", "Discord", "Telegram"];
 
+import type { AvailableClass, AvailableExam } from "@/types";
+
 export default function SettingsPage() {
-  const [sessionClass,  setSessionClass]  = useState(null);
-  const [sessionExam,   setSessionExam]   = useState(null);
+  const [sessionClass, setSessionClass] = useState<AvailableClass | null>(null);
+  const [sessionExam,  setSessionExam]  = useState<AvailableExam | null>(null);
 
   const [settings, setSettings] = useState({
     autoAlerts:    true,
@@ -50,9 +53,9 @@ export default function SettingsPage() {
     } catch { /* ignore */ }
   }, []);
 
-  const toggle   = k  => setSettings(s => ({ ...s, [k]: !s[k] }));
-  const removeApp = a => setBlocked(b => b.filter(x => x !== a));
-  function addApp(e) {
+  const toggle    = (k: keyof typeof settings) => setSettings(s => ({ ...s, [k]: !s[k] }));
+  const removeApp = (a: string) => setBlocked(b => b.filter(x => x !== a));
+  function addApp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const v = newApp.trim();
     if (v && !blocked.includes(v)) { setBlocked(b => [...b, v]); setNewApp(""); }

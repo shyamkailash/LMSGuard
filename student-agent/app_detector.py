@@ -2,12 +2,11 @@ from window_detector import get_active_window
 
 
 BLACKLISTED_APPS = {
-    "VS Code": ["vs code", "visual studio code", "vscode", "code", "antigravity"],
-    "Discord": ["discord"],
-    "Telegram": ["telegram"],
-    "WhatsApp": ["whatsapp"],  
-    "kiro":["kiro"],  
-"Calculator": ["calculator", "kcalc", "gnome-calculator"],
+    "VS Code":    ["vs code", "visual studio code", "vscode", "code"],
+    "Discord":    ["discord"],
+    "Telegram":   ["telegram"],
+    "WhatsApp":   ["whatsapp"],
+    "Calculator": ["calculator", "kcalc", "gnome-calculator"],
 }
 
 

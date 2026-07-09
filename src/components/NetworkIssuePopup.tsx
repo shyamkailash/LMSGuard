@@ -5,10 +5,27 @@ import {
   WifiOff, Wifi, X, Clock, User, BookOpen,
   Users, Plus, RotateCcw, Play, Clipboard, ChevronRight
 } from "lucide-react";
+import type { NetworkIssue } from "@/types";
+
+interface ActionResult {
+  action: string;
+  extraMinutes?: number;
+  attempt?: string;
+  duration?: string | number;
+  issue: NetworkIssue;
+}
 
 /* ── Extra Time Modal ─────────────────────────────────────────────────── */
-function ExtraTimeModal({ issue, onConfirm, onClose }) {
-  const [preset,  setPreset]  = useState(null);  // 5 | 10 | 15
+function ExtraTimeModal({
+  issue,
+  onConfirm,
+  onClose,
+}: {
+  issue: NetworkIssue;
+  onConfirm: (data: ActionResult) => void;
+  onClose: () => void;
+}) {
+  const [preset,  setPreset]  = useState<number | null>(null);
   const [custom,  setCustom]  = useState("");
   const minutes = preset ?? (Number(custom) || 0);
 
@@ -121,9 +138,17 @@ function ExtraTimeModal({ issue, onConfirm, onClose }) {
 }
 
 /* ── Retest Modal ─────────────────────────────────────────────────────── */
-function RetestModal({ issue, onConfirm, onClose }) {
-  const [attempt,  setAttempt]  = useState("same");    // "same" | "new"
-  const [duration, setDuration] = useState("same");    // "same" | number
+function RetestModal({
+  issue,
+  onConfirm,
+  onClose,
+}: {
+  issue: NetworkIssue;
+  onConfirm: (data: ActionResult) => void;
+  onClose: () => void;
+}) {
+  const [attempt,  setAttempt]  = useState("same");
+  const [duration, setDuration] = useState<string | number>("same");
 
   function handleConfirm() {
     onConfirm({ action:"allow_retest", attempt, duration, issue });
@@ -242,7 +267,13 @@ function RetestModal({ issue, onConfirm, onClose }) {
 
 /* ── Main Network Issue Popup ─────────────────────────────────────────── */
 export default function NetworkIssuePopup({
-  issue, onClose, onAction,
+  issue,
+  onClose,
+  onAction,
+}: {
+  issue:    NetworkIssue | null;
+  onClose?: () => void;
+  onAction?:(data: ActionResult) => void;
 }) {
   const [show,          setShow]          = useState(false);
   const [showExtraTime, setShowExtraTime] = useState(false);
@@ -259,23 +290,22 @@ export default function NetworkIssuePopup({
 
   function close() { setShow(false); setTimeout(() => onClose?.(), 280); }
 
-  function handleAction(type) {
+  function handleAction(type: string) {
     if (type === "extra_time")   { setShowExtraTime(true); return; }
     if (type === "allow_retest") { setShowRetest(true);    return; }
-    // immediate actions
     setResolved(true);
-    onAction?.({ action:type, issue });
+    onAction?.({ action: type, issue: issue! });
     setTimeout(close, 1200);
   }
 
-  function handleExtraTimeConfirm(data) {
+  function handleExtraTimeConfirm(data: ActionResult) {
     setShowExtraTime(false);
     setResolved(true);
     onAction?.(data);
     setTimeout(close, 1200);
   }
 
-  function handleRetestConfirm(data) {
+  function handleRetestConfirm(data: ActionResult) {
     setShowRetest(false);
     setResolved(true);
     onAction?.(data);

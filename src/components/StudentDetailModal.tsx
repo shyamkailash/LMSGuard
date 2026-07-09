@@ -1,8 +1,15 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Monitor, Keyboard, Mouse, Wifi, AlertTriangle, CheckCircle, Zap } from "lucide-react";
+import type { MonitoringStudent } from "@/types";
 
-export default function StudentDetailModal({ student, onClose }) {
+export default function StudentDetailModal({
+  student,
+  onClose,
+}: {
+  student: MonitoringStudent | null;
+  onClose: () => void;
+}) {
   if (!student) return null;
   const risk = student.risk ?? 0;
   const riskColor = risk >= 70 ? "var(--danger)" : risk >= 35 ? "var(--warning)" : "var(--success)";

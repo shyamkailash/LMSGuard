@@ -19,6 +19,7 @@ class LiveMonitoringAgent:
         self.high_risk_events = {
             "UNAUTHORIZED_APP",
             "IDLE_STATUS",
+            "IDLE_DETECTED",   # agent may send either name; both are high-risk
             "TAB_SWITCH",
             "COPY_PASTE",
             "PHONE_DETECTED",

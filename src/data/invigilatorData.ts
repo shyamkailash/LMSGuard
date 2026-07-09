@@ -15,7 +15,7 @@ export const INVIGILATORS : InvigilatorProfile[] = [
 ];
 
 /** Resolve invigilator profile by email — defaults to INV001 for demo */
-export function getInvigilatorByEmail(email) {
+export function getInvigilatorByEmail(email: string): InvigilatorProfile {
   return (
     INVIGILATORS.find(inv => inv.email.toLowerCase() === email.toLowerCase()) ??
     INVIGILATORS[0]
@@ -65,7 +65,7 @@ export const AVAILABLE_EXAMS : AvailableExam[] = [
 ];
 
 /** Returns exams available for a given class */
-export function getExamsForClass(classId) {
+export function getExamsForClass(classId: string): AvailableExam[] {
   return AVAILABLE_EXAMS.filter(e => e.eligibleClasses.includes(classId));
 }
 

@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
 
-  async function handleLogin(e) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email || !password) { setError("Please fill in all fields."); return; }
     setError(""); setLoading(true);

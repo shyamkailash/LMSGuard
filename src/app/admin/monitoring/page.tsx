@@ -6,7 +6,8 @@ import AdminStudentDetailModal from "@/components/AdminStudentDetailModal";
 import { onEvent } from "@/services/websocket";
 import { ALL_STUDENTS, ALL_VIOLATIONS, ALL_CLASSES, ALL_INVIGILATORS, ALL_EXAMS, DEPARTMENTS } from "@/data/adminData";
 import { CLASS_STUDENTS } from "@/data/invigilatorData";
-import {
+import type { AdminStudent, MonitoringSession } from "@/types";
+
   Search, Users, CheckCircle, AlertTriangle, RefreshCw, Wifi, Shield, BookOpen,
   Filter, X, Download, MessageSquare, Ban, Play, Pause, Square, Clock, WifiOff,
   Activity, Eye, Zap, AlertCircle, ChevronDown
@@ -39,9 +40,9 @@ export default function AdminMonitoringPage() {
   const [riskFilter,    setRiskFilter]    = useState("all");
   const [statusFilter,  setStatusFilter]  = useState("all");
   const [networkFilter, setNetworkFilter] = useState("all");
-  const [selected,      setSelected]      = useState(null);
+  const [selected,      setSelected]      = useState<AdminStudent | null>(null);
   const [spinning,      setSpinning]      = useState(false);
-  const [toast,         setToast]         = useState(null);
+  const [toast,         setToast]         = useState<string | null>(null);
   const [showFilters,   setShowFilters]   = useState(false);
   const [alerts,        setAlerts]        = useState([]);
 

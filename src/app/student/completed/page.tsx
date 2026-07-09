@@ -14,11 +14,21 @@ const PARTICLES = Array.from({ length: 30 }, (_, i) => ({
   duration: Math.random() * 2 + 2,
 }));
 
+interface ExamDataShape {
+  title?: string;
+  subject?: string;
+  code?: string;
+  totalQuestions?: number;
+  totalMarks?: number;
+  duration?: number;
+  date?: string;
+}
+
 export default function ExamCompletedPage() {
   const router = useRouter();
   const [studentName, setStudentName] = useState("Student");
-  const [examData, setExamData]       = useState(null);
-  const [submitTime, setSubmitTime]   = useState("");
+  const [examData,    setExamData]    = useState<ExamDataShape | null>(null);
+  const [submitTime,  setSubmitTime]  = useState("");
 
   useEffect(() => {
     const name = sessionStorage.getItem("studentName") || "Student";

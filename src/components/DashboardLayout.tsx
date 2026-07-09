@@ -1,25 +1,37 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, ChevronDown, Wifi, WifiOff, Search, Users, BookOpen, LogOut } from "lucide-react";
 import Sidebar from "./Sidebar";
 import AlertPopup from "./AlertPopup";
 import NetworkIssuePopup from "./NetworkIssuePopup";
+import BackendStatus from "./BackendStatus";
 import { connectSocket, onEvent } from "@/services/websocket";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function DashboardLayout({ children, title, subtitle }) {
+import type { WSViolationEvent, NetworkIssue, InvigilatorProfile, AvailableClass, AvailableExam } from "@/types";
+
+export default function DashboardLayout({
+  children,
+  title,
+  subtitle,
+}: {
+  children:  React.ReactNode;
+  title:     string;
+  subtitle?: string;
+}) {
   const [collapsed,    setCollapsed]    = useState(false);
-  const [alertCurrent, setAlertCurrent] = useState(null);
-  const [alertQueue,   setAlertQueue]   = useState([]);
-  const [netIssue,     setNetIssue]     = useState(null);
-  const [netQueue,     setNetQueue]     = useState([]);
+  const [alertCurrent, setAlertCurrent] = useState<WSViolationEvent | null>(null);
+  const [alertQueue,   setAlertQueue]   = useState<WSViolationEvent[]>([]);
+  const [netIssue,     setNetIssue]     = useState<NetworkIssue | null>(null);
+  const [netQueue,     setNetQueue]     = useState<NetworkIssue[]>([]);
   const [mode,         setMode]         = useState("connecting");
   const [notifs,       setNotifs]       = useState(0);
-  const [invProfile,   setInvProfile]   = useState(null);
-  const [sessionClass, setSessionClass] = useState(null);
-  const [sessionExam,  setSessionExam]  = useState(null);
+  const [invProfile,   setInvProfile]   = useState<InvigilatorProfile | null>(null);
+  const [sessionClass, setSessionClass] = useState<AvailableClass | null>(null);
+  const [sessionExam,  setSessionExam]  = useState<AvailableExam | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -148,7 +160,10 @@ export default function DashboardLayout({ children, title, subtitle }) {
               </AnimatePresence>
             </motion.button>
 
-            
+            {/* Backend API status */}
+            <div className="hidden md:block">
+              <BackendStatus />
+            </div>
 
             {/* User */}
             <div className="flex items-center gap-2 pl-2.5" style={{ borderLeft:"1px solid var(--border)" }}>

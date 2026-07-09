@@ -17,11 +17,13 @@ import {
 } from "@/data/invigilatorData";
 import { INITIAL_NETWORK_ISSUES } from "@/data/networkData";
 
-const SEV = { critical:"badge-danger", warning:"badge-warning", medium:"badge-warning" };
+import type { AvailableClass, AvailableExam, InvigilatorProfile, NetworkIssue } from "@/types";
+
+const SEV: Record<string, string> = { critical:"badge-danger", warning:"badge-warning", medium:"badge-warning" };
 
 // ─── Step 1: Class Selector ────────────────────────────────────────────────────
-function ClassSelector({ onSelect }) {
-  const [hovered, setHovered] = useState(null);
+function ClassSelector({ onSelect }: { onSelect: (cls: AvailableClass) => void }) {
+  const [hovered, setHovered] = useState<string | null>(null);
 
   return (
     <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
@@ -86,9 +88,17 @@ function ClassSelector({ onSelect }) {
 }
 
 // ─── Step 2: Exam Selector ────────────────────────────────────────────────────
-function ExamSelector({ selectedClass, onSelect, onBack }) {
+function ExamSelector({
+  selectedClass,
+  onSelect,
+  onBack,
+}: {
+  selectedClass: AvailableClass;
+  onSelect: (exam: AvailableExam) => void;
+  onBack: () => void;
+}) {
   const exams = getExamsForClass(selectedClass.id);
-  const [hovered, setHovered] = useState(null);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   return (
     <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
@@ -188,7 +198,17 @@ function ExamSelector({ selectedClass, onSelect, onBack }) {
 }
 
 // ─── Step 3: Confirmation + Start ─────────────────────────────────────────────
-function MonitoringReady({ selectedClass, selectedExam, onBack, onStart }) {
+function MonitoringReady({
+  selectedClass,
+  selectedExam,
+  onBack,
+  onStart,
+}: {
+  selectedClass: AvailableClass;
+  selectedExam: AvailableExam;
+  onBack: () => void;
+  onStart: () => void;
+}) {
   const students   = CLASS_STUDENTS[selectedClass.id]   || [];
   const violations = CLASS_VIOLATIONS[selectedClass.id] || [];
 
@@ -275,7 +295,17 @@ function MonitoringReady({ selectedClass, selectedExam, onBack, onStart }) {
 }
 
 // ─── Step 4: Active Monitoring Dashboard ──────────────────────────────────────
-function ActiveDashboard({ invProfile, selectedClass, selectedExam, onChangeSession }) {
+function ActiveDashboard({
+  invProfile,
+  selectedClass,
+  selectedExam,
+  onChangeSession,
+}: {
+  invProfile: InvigilatorProfile | null;
+  selectedClass: AvailableClass;
+  selectedExam: AvailableExam;
+  onChangeSession: () => void;
+}) {
   const router = useRouter();
   const [students,      setStudents]      = useState(CLASS_STUDENTS[selectedClass.id]   || []);
   const [violations,    setViolations]    = useState(CLASS_VIOLATIONS[selectedClass.id] || []);
@@ -652,11 +682,11 @@ function ActiveDashboard({ invProfile, selectedClass, selectedExam, onChangeSess
 
 // ─── Root Page ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [invProfile,     setInvProfile]     = useState(null);
+  const [invProfile,     setInvProfile]     = useState<InvigilatorProfile | null>(null);
   // 1 = choose class, 2 = choose exam, 3 = confirm, 4 = active dashboard
   const [step,           setStep]           = useState(1);
-  const [selectedClass,  setSelectedClass]  = useState(null);
-  const [selectedExam,   setSelectedExam]   = useState(null);
+  const [selectedClass,  setSelectedClass]  = useState<AvailableClass | null>(null);
+  const [selectedExam,   setSelectedExam]   = useState<AvailableExam | null>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("invProfile");
@@ -680,17 +710,18 @@ export default function DashboardPage() {
     }
   }, []);
 
-  function handleClassSelect(cls) {
+  function handleClassSelect(cls: AvailableClass) {
     setSelectedClass(cls);
     setStep(2);
   }
 
-  function handleExamSelect(exam) {
+  function handleExamSelect(exam: AvailableExam) {
     setSelectedExam(exam);
     setStep(3);
   }
 
   function handleStart() {
+    if (!selectedClass || !selectedExam) return;
     // Persist session for sidebar, monitoring, violations, reports pages
     sessionStorage.setItem("invSelectedClass", JSON.stringify(selectedClass));
     sessionStorage.setItem("invSelectedExam",  JSON.stringify(selectedExam));

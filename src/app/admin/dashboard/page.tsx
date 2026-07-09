@@ -10,7 +10,20 @@ import {
 } from "lucide-react";
 import { SYSTEM_STATS, ALL_VIOLATIONS, ACTIVE_SESSIONS, ALL_STUDENTS, ALL_INVIGILATORS } from "@/data/adminData";
 
-function StatCard({ title, value, icon:Icon, color, bg, border, subtitle, index=0 }) {
+import type { LucideIcon } from "lucide-react";
+
+function StatCard({
+  title, value, icon: Icon, color, bg, border, subtitle, index = 0,
+}: {
+  title:     string;
+  value:     string | number;
+  icon:      LucideIcon;
+  color:     string;
+  bg:        string;
+  border:    string;
+  subtitle?: string;
+  index?:    number;
+}) {
   return (
     <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }}
       transition={{ delay:index*0.07 }}
@@ -35,8 +48,10 @@ function StatCard({ title, value, icon:Icon, color, bg, border, subtitle, index=
   );
 }
 
+import type { AdminAccount } from "@/types";
+
 export default function AdminDashboardPage() {
-  const [admin, setAdmin] = useState(null);
+  const [admin, setAdmin] = useState<AdminAccount | null>(null);
   useEffect(() => {
     try { const r = sessionStorage.getItem("adminProfile"); if (r) setAdmin(JSON.parse(r)); } catch {}
   }, []);

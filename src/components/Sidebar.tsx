@@ -15,7 +15,13 @@ const NAV = [
   { label:"Settings",   href:"/settings",   icon:Settings        },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle:  () => void;
+}) {
   const path = usePathname();
 
   return (

@@ -14,6 +14,7 @@
   --bg:           #F8FAFC;
   --bg-subtle:    #F1F5F9;
   --bg-muted:     #E8EEF4;
+  --bg-deep:      #F8FAFC;
   --card:         #FFFFFF;
   --card-hover:   #FAFCFF;
   --sidebar:      #FFFFFF;
@@ -22,6 +23,7 @@
   --primary:        #2563EB;
   --primary-hover:  #1D4ED8;
   --primary-soft:   #EFF6FF;
+  --primary-muted:  #EFF6FF;
   --primary-border: rgba(37,99,235,0.2);
   --primary-glow:   rgba(37,99,235,0.12);
 
@@ -32,15 +34,19 @@
   /* Functional */
   --success:        #22C55E;
   --success-soft:   #F0FDF4;
+  --success-muted:  #F0FDF4;
   --success-border: rgba(34,197,94,0.22);
   --warning:        #F59E0B;
   --warning-soft:   #FFFBEB;
+  --warning-muted:  #FFFBEB;
   --warning-border: rgba(245,158,11,0.22);
   --danger:         #EF4444;
   --danger-soft:    #FFF1F2;
+  --danger-muted:   #FFF1F2;
   --danger-border:  rgba(239,68,68,0.22);
   --purple:         #8B5CF6;
   --purple-soft:    #F5F3FF;
+  --purple-muted:   #F5F3FF;
   --purple-border:  rgba(139,92,246,0.22);
 
   /* College brand */

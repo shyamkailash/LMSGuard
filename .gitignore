@@ -1,96 +1,53 @@
-HEAD
-# Next.js build output
+# ── Next.js ───────────────────────────────────────────────────────────────────
 .next/
 out/
 
-# Dependencies
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
+connection-demo/node_modules/
+connection-demo/dist/
+frontend/node_modules/
+frontend/.next/
 
-# Environment files
+# ── Environment ───────────────────────────────────────────────────────────────
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 
-# Misc
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+backend/venv/
+backend/__pycache__/
+student-agent/venv/
+student-agent/__pycache__/
+
+# ── Database (don't commit live DB) ───────────────────────────────────────────
+backend/lmsguard.db
+
+# ── Backend artefacts ─────────────────────────────────────────────────────────
+backend/evidence/
+backend/logs/
+
+# ── Editor / OS ───────────────────────────────────────────────────────────────
 .DS_Store
+.idea/
+.vscode/
 *.pem
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Vercel
+# ── Vercel ────────────────────────────────────────────────────────────────────
 .vercel
 
-# Editor files
-.idea/
-.vscode/
-
-# Build artifacts
-*.log
+# ── Build ─────────────────────────────────────────────────────────────────────
 cache/
 temp/
-
-# Backend Python files (if excluding from frontend repo)
-backend/venv/
-student-agent/venv/
-
-# Connection demo
-connection-demo/node_modules/
-connection-demo/dist/
-
-# Python cache
-__pycache__/
-*.pyc
-backend/__pycache__/
-student-agent/__pycache__/
-
-# LMSGuard evidence files
-backend/evidence/screenshots/*.jpg
-backend/evidence/screenshots/*.png
-backend/evidence/videos/*.mp4
-backend/logs/*.json
-!backend/evidence/screenshots/.gitkeep
-!backend/evidence/videos/.gitkeep
-!backend/logs/.gitkeep
-
-# Python virtual environments
-venv/
-.venv/
-backend/venv/
-student-agent/venv/
-
-# Python cache
-__pycache__/
-*.pyc
-backend/__pycache__/
-student-agent/__pycache__/
-
-# Node cache/build
-node_modules/
-frontend/node_modules/
-.next/
-frontend/.next/
 dist/
-build/
-
-# Environment files
-.env
-.env.local
-frontend/.env.local
-
-# Evidence/generated files
-backend/evidence/screenshots/*.jpg
-backend/evidence/screenshots/*.png
-backend/evidence/videos/*.mp4
-backend/logs/*.json
-!backend/evidence/screenshots/.gitkeep
-!backend/evidence/videos/.gitkeep
-!backend/logs/.gitkeep
-
-# SQLite database files
-backend/*.db
-backend/*.db-journal
-backend/*.sqlite
-backend/*.sqlite3

@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import StudentCard from "@/components/StudentCard";
 import StudentDetailModal from "@/components/StudentDetailModal";
 import { onEvent } from "@/services/websocket";
+import type { AvailableClass, AvailableExam, MonitoringStudent } from "@/types";
 import { CLASS_STUDENTS } from "@/data/invigilatorData";
 import {
   Search, Users, CheckCircle, AlertTriangle,
@@ -22,12 +23,12 @@ const FILTERS = [
 
 export default function MonitoringPage() {
   const router = useRouter();
-  const [sessionClass, setSessionClass] = useState(null);
-  const [sessionExam,  setSessionExam]  = useState(null);
-  const [students,  setStudents]  = useState([]);
+  const [sessionClass, setSessionClass] = useState<AvailableClass | null>(null);
+  const [sessionExam,  setSessionExam]  = useState<AvailableExam | null>(null);
+  const [students,  setStudents]  = useState<MonitoringStudent[]>([]);
   const [search,    setSearch]    = useState("");
   const [filter,    setFilter]    = useState("all");
-  const [selected,  setSelected]  = useState(null);
+  const [selected,  setSelected]  = useState<MonitoringStudent | null>(null);
   const [spinning,  setSpinning]  = useState(false);
   const [ready,     setReady]     = useState(false);
 

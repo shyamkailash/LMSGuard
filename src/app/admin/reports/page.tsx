@@ -55,9 +55,9 @@ const REPORT_TYPES = [
 
 export default function AdminReportsPage() {
   const [selections, setSelections]   = useState({ dept:"", class:"", exam:"" });
-  const [generating,  setGenerating]  = useState(null);   // report type id
-  const [generated,   setGenerated]   = useState(null);   // report type id
-  const [genTime,     setGenTime]     = useState(null);
+  const [generating,  setGenerating]  = useState<string | null>(null);  // report type id
+  const [generated,   setGenerated]   = useState<string | null>(null);  // report type id
+  const [genTime,     setGenTime]     = useState<string | null>(null);
 
   async function handleGenerate(typeId) {
     setGenerating(typeId);

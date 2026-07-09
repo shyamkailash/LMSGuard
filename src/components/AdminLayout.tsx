@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -47,10 +48,20 @@ const NAV_GROUPS = [
   },
 ];
 
-export default function AdminLayout({ children, title, subtitle }) {
+import type { AdminAccount } from "@/types";
+
+export default function AdminLayout({
+  children,
+  title,
+  subtitle,
+}: {
+  children:  React.ReactNode;
+  title:     string;
+  subtitle?: string;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [notifs,    setNotifs]    = useState(5);
-  const [admin,     setAdmin]     = useState(null);
+  const [admin, setAdmin] = useState<AdminAccount | null>(null);
   const pathname = usePathname();
   const router   = useRouter();
 

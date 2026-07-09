@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import { ViolationTrendChart, ViolationTypesChart, RiskPieChart } from "@/components/Charts";
+import type { AvailableClass, AvailableExam, MonitoringStudent, ViolationRecord } from "@/types";
 import {
   FileText, Download, Users, AlertTriangle, CheckCircle,
   Zap, Printer, Share2, BarChart3, Shield, BookOpen,
@@ -13,10 +14,10 @@ import { CLASS_STUDENTS, CLASS_VIOLATIONS } from "@/data/invigilatorData";
 
 export default function ReportsPage() {
   const router = useRouter();
-  const [sessionClass,  setSessionClass]  = useState(null);
-  const [sessionExam,   setSessionExam]   = useState(null);
-  const [students,      setStudents]      = useState([]);
-  const [violations,    setViolations]    = useState([]);
+  const [sessionClass,  setSessionClass]  = useState<AvailableClass | null>(null);
+  const [sessionExam,   setSessionExam]   = useState<AvailableExam | null>(null);
+  const [students,      setStudents]      = useState<MonitoringStudent[]>([]);
+  const [violations,    setViolations]    = useState<ViolationRecord[]>([]);
   const [generating,    setGenerating]    = useState(false);
   const [reportReady,   setReportReady]   = useState(false);
   const [ready,         setReady]         = useState(false);

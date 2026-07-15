@@ -39,7 +39,7 @@ class Department(Base):
 
     id      = Column(Integer, primary_key=True, index=True)
     name    = Column(String(120), unique=True, nullable=False)
-    code    = Column(String(20),  unique=True, nullablpyhton=False)
+    code    = Column(String(20),  unique=True, nullable=False)
     hod     = Column(String(120), nullable=True)
 
     classes  = relationship("SchoolClass", back_populates="department_rel", cascade="all, delete-orphan")

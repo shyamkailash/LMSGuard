@@ -38,13 +38,11 @@ export default function SebGatewayPage() {
         const data = await res.json();
         if (cancelled) return;
 
-        if (data.allowed) {
+        if (data.allowed && data.moodle_quiz_url) {
           setState("allowed");
-          setMessage("Access verified. Redirecting to exam...");
+          setMessage("Access verified. Redirecting to Moodle quiz...");
           window.setTimeout(() => {
-            if (data.moodle_quiz_url) {
-              window.location.replace(data.moodle_quiz_url);
-            }
+            window.location.replace(data.moodle_quiz_url);
           }, 1000);
           return;
         }

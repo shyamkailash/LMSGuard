@@ -1,15 +1,21 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
+import {
   X, Monitor, Keyboard, Mouse, Wifi, AlertTriangle, CheckCircle, Zap,
   Pause, Square, Ban, MessageSquare, LogOut, Clock, Download, FileText,
   Activity, Eye, WifiOff, Shield
 } from "lucide-react";
 
-export default function AdminStudentDetailModal({ student, onClose, onAction }) {
+interface LegacyStudentModalProps {
+  student: any;
+  onClose: () => void;
+  onAction?: (action: string, student: any) => void;
+}
+
+export default function AdminStudentDetailModal({ student, onClose, onAction }: LegacyStudentModalProps) {
   if (!student) return null;
   
-  const risk = student.risk ?? 0;
+  const risk = (student.risk as number) ?? 0;
   const riskColor = risk >= 70 ? "var(--danger)" : risk >= 35 ? "var(--warning)" : "var(--success)";
   const riskBarClass = risk >= 70 ? "risk-bar-danger" : risk >= 35 ? "risk-bar-warning" : "risk-bar-safe";
 
@@ -22,10 +28,12 @@ export default function AdminStudentDetailModal({ student, onClose, onAction }) 
 
   const violations = student.violations || [];
 
-  const SEV = {
+  const SEV: Record<string, string> = {
     critical: "badge-danger",
+    high:     "badge-danger",
     warning:  "badge-warning",
     medium:   "badge-warning",
+    low:      "badge-muted",
     safe:     "badge-success",
   };
 
@@ -41,8 +49,8 @@ export default function AdminStudentDetailModal({ student, onClose, onAction }) 
     { id: "remark", label: "Add Remark", icon: FileText, color: "var(--primary)", type: "primary" },
   ];
 
-  const handleAction = (actionId) => {
-    if (onAction) onAction(actionId, student.id);
+  const handleAction = (actionId: string) => {
+    if (onAction) onAction(actionId, student);
   };
 
   return (
@@ -74,7 +82,7 @@ export default function AdminStudentDetailModal({ student, onClose, onAction }) 
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-bold" style={{ color: "var(--text-primary)" }}>{student.name}</h2>
-                  <Shield size={12} style={{ color: "var(--primary)" }} title="Admin Monitoring"/>
+                  <Shield size={12} style={{ color: "var(--primary)" }} aria-label="Admin Monitoring"/>
                 </div>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                   {student.regno} · {student.class} · {student.exam}
@@ -198,7 +206,7 @@ export default function AdminStudentDetailModal({ student, onClose, onAction }) 
                 </h4>
                 {violations.length > 0 ? (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {violations.map((v, i) => (
+                    {violations.map((v: any, i: number) => (
                       <div key={i} className="flex items-center justify-between p-2.5 rounded-xl"
                            style={{ background: "var(--bg-deep)", border: "1px solid var(--border)" }}>
                         <div className="flex items-center gap-2">
@@ -210,7 +218,7 @@ export default function AdminStudentDetailModal({ student, onClose, onAction }) 
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>{v.time}</span>
-                          <span className={`badge ${SEV[v.severity] || "badge-warning"}`}>{v.severity}</span>
+                          <span className={`badge ${SEV[v.severity as keyof typeof SEV] ?? "badge-warning"}`}>{v.severity}</span>
                         </div>
                       </div>
                     ))}

@@ -1,600 +1,380 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import AdminLayout from "@/components/AdminLayout";
-import AdminStudentDetailModal from "@/components/AdminStudentDetailModal";
-import { onEvent } from "@/services/websocket";
-import { ALL_STUDENTS, ALL_VIOLATIONS, ALL_CLASSES, ALL_INVIGILATORS, ALL_EXAMS, DEPARTMENTS } from "@/data/adminData";
-import { CLASS_STUDENTS } from "@/data/invigilatorData";
-import type { AdminStudent, MonitoringSession } from "@/types";
-
-  Search, Users, CheckCircle, AlertTriangle, RefreshCw, Wifi, Shield, BookOpen,
-  Filter, X, Download, MessageSquare, Ban, Play, Pause, Square, Clock, WifiOff,
-  Activity, Eye, Zap, AlertCircle, ChevronDown
+import { useState, useMemo } from "react";
+import { AppShell, PageHeader } from "@/components/layouts";
+import { Badge, Button, Modal, ModalFooter } from "@/components/ui";
+import { RiskMeter } from "@/components/ui/RiskMeter";
+import { Avatar } from "@/components/ui/Avatar";
+import { StudentCard } from "@/components/features/monitoring/StudentCard";
+import { AreaChart } from "@/components/features/charts";
+import { motion, AnimatePresence } from "framer-motion";
+import { MOCK_MONITORING_STUDENTS } from "@/mock/students";
+import { MOCK_VIOLATIONS, MOCK_AI_ALERTS, MOCK_TIMELINE } from "@/mock/violations";
+import { MOCK_SESSIONS } from "@/mock/invigilators";
+import { VIOLATION_TREND_DATA } from "@/mock/exams";
+import { CHART_COLORS } from "@/constants";
+import { getRiskInfo } from "@/hooks/useRisk";
+import type { MonitoringStudent } from "@/types";
+import {
+  Activity, AlertTriangle, Users, Wifi, WifiOff,
+  LayoutGrid, List, Filter, RefreshCw, Download,
+  ChevronDown, Clock, Shield, TrendingUp, Eye,
+  CheckCircle, Circle, Zap,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
-// ─── FILTER OPTIONS ──────────────────────────────────────────────────────────
-const RISK_FILTERS = [
-  { value:"all",       label:"All Risk Levels",   icon:Users,         color:"var(--primary)" },
-  { value:"safe",      label:"Safe (0-34)",       icon:CheckCircle,   color:"var(--success)" },
-  { value:"warning",   label:"Warning (35-69)",   icon:AlertTriangle, color:"var(--warning)" },
-  { value:"critical",  label:"Critical (70+)",    icon:AlertTriangle, color:"var(--danger)"  },
-];
-
-const STATUS_FILTERS = [
-  { value:"all",          label:"All Status",    color:"var(--primary)" },
-  { value:"safe",         label:"Safe",          color:"var(--success)" },
-  { value:"warning",      label:"Warning",       color:"var(--warning)" },
-  { value:"violation",    label:"Violation",     color:"var(--danger)"  },
-  { value:"disconnected", label:"Offline",       color:"var(--danger)"  },
-];
-
-export default function AdminMonitoringPage() {
-  // ─── State ─────────────────────────────────────────────────────────────────
-  const [allStudents,   setAllStudents]   = useState([]);
-  const [search,        setSearch]        = useState("");
-  const [deptFilter,    setDeptFilter]    = useState("all");
-  const [classFilter,   setClassFilter]   = useState("all");
-  const [examFilter,    setExamFilter]    = useState("all");
-  const [invigilator,   setInvigilator]   = useState("all");
-  const [riskFilter,    setRiskFilter]    = useState("all");
-  const [statusFilter,  setStatusFilter]  = useState("all");
-  const [networkFilter, setNetworkFilter] = useState("all");
-  const [selected,      setSelected]      = useState<AdminStudent | null>(null);
-  const [spinning,      setSpinning]      = useState(false);
-  const [toast,         setToast]         = useState<string | null>(null);
-  const [showFilters,   setShowFilters]   = useState(false);
-  const [alerts,        setAlerts]        = useState([]);
-
-  // ─── Initialize All Students ───────────────────────────────────────────────
-  useEffect(() => {
-    const students = [];
-    Object.keys(CLASS_STUDENTS).forEach(classId => {
-      const classData = ALL_CLASSES.find(c => c.id === classId);
-      const classStudents = CLASS_STUDENTS[classId] || [];
-      classStudents.forEach(s => {
-        students.push({
-          ...s,
-          class: classData?.name || classId,
-          classId,
-          dept: classData?.dept || "Unknown",
-          deptCode: classData?.deptCode || "",
-          exam: "DBMS Final Exam", // Default exam
-          examId: "EX001",
-          invigilator: "John Martin", // Default invigilator
-          networkStatus: s.networkStatus || "stable",
-          currentWindow: s.currentWindow || "Chrome · Exam Portal",
-        });
-      });
-    });
-    setAllStudents(students);
-  }, []);
-
-  // ─── Real-time Updates ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const offUpdate = onEvent("screen_update", ({ studentId, risk, networkStatus }) => {
-      setAllStudents(prev => prev.map(s =>
-        s.id === studentId ? { ...s, risk: Math.min(100, risk), networkStatus: networkStatus || s.networkStatus } : s
-      ));
-    });
-
-    const offNet = onEvent("network_update", ({ studentId, networkStatus }) => {
-      setAllStudents(prev => prev.map(s =>
-        s.id === studentId ? { ...s, networkStatus } : s
-      ));
-    });
-
-    const offViol = onEvent("violation_detected", data => {
-      setAllStudents(prev => prev.map(s =>
-        s.id === data.studentId
-          ? {
-              ...s,
-              risk: Math.min(100, data.risk || s.risk),
-              status: data.severity === "critical" ? "violation" : "warning",
-              violations: [
-                { time: data.time, type: data.type, detail: data.detail, severity: data.severity },
-                ...(s.violations || []),
-              ],
-            }
-          : s
-      ));
-      
-      // Add to alerts
-      const student = allStudents.find(st => st.id === data.studentId);
-      if (student) {
-        setAlerts(prev => [{
-          id: Date.now(),
-          studentName: student.name,
-          class: student.class,
-          type: data.type,
-          severity: data.severity,
-          time: data.time,
-        }, ...prev.slice(0, 49)]);
-      }
-    });
-
-    return () => { offUpdate(); offNet(); offViol(); };
-  }, [allStudents]);
-
-  // ─── Refresh Handler ───────────────────────────────────────────────────────
-  const handleRefresh = useCallback(() => {
-    setSpinning(true);
-    setTimeout(() => setSpinning(false), 700);
-  }, []);
-
-  // ─── Show Toast ────────────────────────────────────────────────────────────
-  const showToast = (message) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  // ─── Admin Actions ─────────────────────────────────────────────────────────
-  const pauseExam = (studentId) => {
-    showToast("Exam paused for student");
-  };
-
-  const terminateExam = (studentId) => {
-    showToast("Exam terminated by Admin");
-  };
-
-  const blockStudent = (studentId) => {
-    showToast("Student blocked from system");
-  };
-
-  const sendWarning = (studentId) => {
-    showToast("Warning message sent to student");
-  };
-
-  const forceLogout = (studentId) => {
-    showToast("Student logged out by Admin");
-  };
-
-  const grantExtraTime = (studentId) => {
-    showToast("Extra 15 minutes granted");
-  };
-
-  const downloadLogs = (studentId) => {
-    showToast("Activity logs downloaded");
-  };
-
-  // ─── Filter Logic ──────────────────────────────────────────────────────────
-  const filtered = allStudents.filter(s => {
-    const q = search.toLowerCase();
-    const matchSearch = s.name.toLowerCase().includes(q) || s.regno.toLowerCase().includes(q);
-    const matchDept = deptFilter === "all" || s.dept === deptFilter;
-    const matchClass = classFilter === "all" || s.classId === classFilter;
-    const matchExam = examFilter === "all" || s.examId === examFilter;
-    const matchInvigilator = invigilator === "all" || s.invigilator === invigilator;
-    
-    let matchRisk = true;
-    if (riskFilter === "safe") matchRisk = s.risk < 35;
-    else if (riskFilter === "warning") matchRisk = s.risk >= 35 && s.risk < 70;
-    else if (riskFilter === "critical") matchRisk = s.risk >= 70;
-
-    const matchStatus = statusFilter === "all" 
-      || (statusFilter === "disconnected" ? s.networkStatus === "disconnected" : s.status === statusFilter);
-
-    const matchNetwork = networkFilter === "all" || s.networkStatus === networkFilter;
-
-    return matchSearch && matchDept && matchClass && matchExam && matchInvigilator && matchRisk && matchStatus && matchNetwork;
-  });
-
-  // ─── Counts ────────────────────────────────────────────────────────────────
-  const totalStudents = allStudents.length;
-  const studentsOnline = allStudents.filter(s => s.networkStatus !== "disconnected").length;
-  const violations = allStudents.filter(s => s.status === "violation").length;
-  const criticalAlerts = allStudents.filter(s => s.risk >= 70).length;
-  const networkIssues = allStudents.filter(s => s.networkStatus === "disconnected").length;
-  const activeExams = [...new Set(allStudents.map(s => s.examId))].length;
-  const activeDepts = [...new Set(allStudents.map(s => s.dept))].length;
-  const activeClasses = [...new Set(allStudents.map(s => s.classId))].length;
-
+/* ── Toolbar ── */
+function MonitoringToolbar({
+  view, setView, filter, setFilter, studentCount, violationCount,
+}: {
+  view: "grid" | "list";
+  setView: (v: "grid" | "list") => void;
+  filter: string;
+  setFilter: (f: string) => void;
+  studentCount: number;
+  violationCount: number;
+}) {
   return (
-    <AdminLayout title="Live Monitoring" subtitle="Complete System Monitoring · All Departments, Classes & Exams">
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-20 }}
-            className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
-            style={{ background:"var(--success)", color:"white" }}>
-            <CheckCircle size={14}/><span className="text-sm font-semibold">{toast}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ─── DASHBOARD STATS ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-6">
-        {[
-          { label:"Total Students",    value:totalStudents,  icon:Users,          color:"var(--primary)",   border:"rgba(37,99,235,0.2)" },
-          { label:"Active Exams",      value:activeExams,    icon:BookOpen,       color:"var(--success)",   border:"rgba(22,163,74,0.2)" },
-          { label:"Departments",       value:activeDepts,    icon:Shield,         color:"var(--primary)",   border:"rgba(37,99,235,0.2)" },
-          { label:"Classes",           value:activeClasses,  icon:Users,          color:"var(--primary)",   border:"rgba(37,99,235,0.2)" },
-          { label:"Students Online",   value:studentsOnline, icon:Wifi,           color:"var(--success)",   border:"rgba(22,163,74,0.2)" },
-          { label:"Violations",        value:violations,     icon:AlertTriangle,  color:"var(--danger)",    border:"rgba(220,38,38,0.2)" },
-          { label:"Critical Alerts",   value:criticalAlerts, icon:AlertCircle,    color:"var(--danger)",    border:"rgba(220,38,38,0.2)" },
-          { label:"Network Issues",    value:networkIssues,  icon:WifiOff,        color:"var(--warning)",   border:"rgba(217,119,6,0.2)" },
-        ].map(({ label, value, icon:Icon, color, border }, i) => (
-          <motion.div key={label} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}
-            className="rounded-2xl p-3"
-            style={{ background:"var(--card)", border:`1px solid ${border}`, boxShadow:"var(--shadow)" }}>
-            <div className="flex items-center gap-2 mb-1">
-              <Icon size={13} style={{ color }}/>
-              <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color:"var(--text-muted)" }}>{label}</p>
-            </div>
-            <p className="text-xl font-bold" style={{ color }}>{value}</p>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* ─── CONTROLS & FILTERS ────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 mb-5">
-        {/* Search & Actions */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color:"var(--text-muted)" }}/>
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name or register number…"
-              className="input-field pl-9"/>
+    <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/* Left: live indicator + stats */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-success/10 border border-success/20">
+          <div className="relative flex items-center justify-center w-3 h-3">
+            <div className="live-dot" />
+            <div className="live-ring" />
           </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold btn-secondary"
-              style={{ borderColor: showFilters ? "var(--primary)" : "var(--border)" }}>
-              <Filter size={12}/> Filters
-              {(deptFilter !== "all" || classFilter !== "all" || examFilter !== "all" || invigilator !== "all" || riskFilter !== "all" || statusFilter !== "all" || networkFilter !== "all") && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] ml-0.5"/>
-              )}
-            </motion.button>
-
-            <motion.button whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
-              onClick={handleRefresh}
-              className="w-9 h-9 rounded-xl flex items-center justify-center btn-secondary">
-              <motion.div animate={{ rotate:spinning ? 360 : 0 }} transition={{ duration:0.7 }}>
-                <RefreshCw size={13}/>
-              </motion.div>
-            </motion.button>
-
-            <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-              onClick={() => downloadLogs("all")}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold btn-primary">
-              <Download size={12}/> Export Logs
-            </motion.button>
-          </div>
+          <span className="text-[12px] font-semibold text-success">LIVE</span>
         </div>
-
-        {/* Filter Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }} exit={{ opacity:0, height:0 }}
-              className="rounded-2xl p-4 space-y-4 overflow-hidden"
-              style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-              
-              {/* Department Filter */}
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color:"var(--text-muted)" }}>
-                  Department
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setDeptFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${deptFilter === "all" ? "btn-primary" : "btn-secondary"}`}>
-                    All Departments
-                  </button>
-                  {DEPARTMENTS.map(d => (
-                    <button key={d.id} onClick={() => setDeptFilter(d.name)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${deptFilter === d.name ? "btn-primary" : "btn-secondary"}`}>
-                      {d.code}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Class Filter */}
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color:"var(--text-muted)" }}>
-                  Class
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setClassFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${classFilter === "all" ? "btn-primary" : "btn-secondary"}`}>
-                    All Classes
-                  </button>
-                  {ALL_CLASSES.map(c => (
-                    <button key={c.id} onClick={() => setClassFilter(c.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${classFilter === c.id ? "btn-primary" : "btn-secondary"}`}>
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Exam Filter */}
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color:"var(--text-muted)" }}>
-                  Exam
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setExamFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${examFilter === "all" ? "btn-primary" : "btn-secondary"}`}>
-                    All Exams
-                  </button>
-                  {ALL_EXAMS.map(e => (
-                    <button key={e.id} onClick={() => setExamFilter(e.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${examFilter === e.id ? "btn-primary" : "btn-secondary"}`}>
-                      {e.code}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Risk Level Filter */}
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color:"var(--text-muted)" }}>
-                  Risk Level
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {RISK_FILTERS.map(({ value, label, color }) => (
-                    <button key={value} onClick={() => setRiskFilter(value)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
-                      style={{
-                        background: riskFilter === value ? `${color}20` : "var(--bg-deep)",
-                        color: riskFilter === value ? color : "var(--text-secondary)",
-                        border: `1px solid ${riskFilter === value ? `${color}40` : "var(--border)"}`,
-                      }}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color:"var(--text-muted)" }}>
-                  Student Status
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {STATUS_FILTERS.map(({ value, label, color }) => (
-                    <button key={value} onClick={() => setStatusFilter(value)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
-                      style={{
-                        background: statusFilter === value ? `${color}20` : "var(--bg-deep)",
-                        color: statusFilter === value ? color : "var(--text-secondary)",
-                        border: `1px solid ${statusFilter === value ? `${color}40` : "var(--border)"}`,
-                      }}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Network Filter */}
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color:"var(--text-muted)" }}>
-                  Network Status
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {["all", "stable", "weak", "disconnected"].map(n => (
-                    <button key={n} onClick={() => setNetworkFilter(n)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${networkFilter === n ? "btn-primary" : "btn-secondary"}`}>
-                      {n.charAt(0).toUpperCase() + n.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Reset Filters */}
-              <div className="flex justify-end pt-2">
-                <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-                  onClick={() => {
-                    setDeptFilter("all");
-                    setClassFilter("all");
-                    setExamFilter("all");
-                    setInvigilator("all");
-                    setRiskFilter("all");
-                    setStatusFilter("all");
-                    setNetworkFilter("all");
-                    setSearch("");
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold"
-                  style={{ background:"var(--danger)", color:"white" }}>
-                  <X size={12}/> Reset All Filters
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ─── RESULTS SUMMARY ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm" style={{ color:"var(--text-muted)" }}>
-          Showing <span className="font-semibold" style={{ color:"var(--text-primary)" }}>{filtered.length}</span> of {totalStudents} students
-        </p>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
-            style={{ background:"var(--success-muted)", border:"1px solid rgba(22,163,74,0.2)", color:"var(--success)" }}>
-            <Wifi size={10}/>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] inline-block mx-0.5 live-blink"/>
-            All streams live
-          </div>
+        <div className="flex items-center gap-4 text-[12px]">
+          <span className="flex items-center gap-1.5 text-text-muted">
+            <Users className="w-3.5 h-3.5" />
+            <span className="text-text-secondary font-medium font-feature">{studentCount}</span> online
+          </span>
+          <span className="flex items-center gap-1.5 text-text-muted">
+            <AlertTriangle className="w-3.5 h-3.5 text-danger" />
+            <span className="text-danger font-medium font-feature">{violationCount}</span> alerts
+          </span>
         </div>
       </div>
 
-      {/* ─── STUDENT GRID ──────────────────────────────────────────────────── */}
-      {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-          {filtered.map((student, i) => (
-            <StudentCardAdmin key={student.id} student={student} index={i} 
-              onViewStudent={setSelected}
-              onPause={pauseExam}
-              onTerminate={terminateExam}
-              onBlock={blockStudent}
-              onWarning={sendWarning}
-              onLogout={forceLogout}
-              onExtraTime={grantExtraTime}
-              onDownload={downloadLogs}
-            />
+      {/* Right: controls */}
+      <div className="flex items-center gap-2">
+        {/* Risk filter */}
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-2 border border-white/5">
+          {["all", "safe", "warning", "violation"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1 rounded-md text-[11.5px] font-medium capitalize transition-all ${
+                filter === f
+                  ? f === "violation" ? "bg-danger text-white" : f === "warning" ? "bg-warning text-black" : f === "safe" ? "bg-success text-black" : "bg-primary text-white"
+                  : "text-text-muted hover:text-text-secondary"
+              }`}
+            >
+              {f}
+            </button>
           ))}
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Search size={36} className="mb-3" style={{ color:"var(--border)" }}/>
-          <p className="font-medium" style={{ color:"var(--text-secondary)" }}>No students found</p>
-          <p className="text-sm mt-1" style={{ color:"var(--text-muted)" }}>
-            {search ? "Try adjusting your search" : "No students match current filters"}
-          </p>
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-2 border border-white/5">
+          <button onClick={() => setView("grid")} className={`icon-btn w-7 h-7 ${view === "grid" ? "bg-primary/20 text-primary" : ""}`}>
+            <LayoutGrid className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => setView("list")} className={`icon-btn w-7 h-7 ${view === "list" ? "bg-primary/20 text-primary" : ""}`}>
+            <List className="w-3.5 h-3.5" />
+          </button>
         </div>
-      )}
-
-      {/* Detail Modal */}
-      <AnimatePresence>
-        {selected && (
-          <AdminStudentDetailModal 
-            student={selected} 
-            onClose={() => setSelected(null)}
-            onAction={(actionId, studentId) => {
-              switch(actionId) {
-                case "pause": pauseExam(studentId); break;
-                case "terminate": terminateExam(studentId); break;
-                case "block": blockStudent(studentId); break;
-                case "warning": sendWarning(studentId); break;
-                case "logout": forceLogout(studentId); break;
-                case "extratime": grantExtraTime(studentId); break;
-                case "download": downloadLogs(studentId); break;
-                case "remark": showToast("Remark feature coming soon"); break;
-              }
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </AdminLayout>
+        <button className="icon-btn"><RefreshCw className="w-3.5 h-3.5" /></button>
+        <button className="icon-btn"><Download className="w-3.5 h-3.5" /></button>
+      </div>
+    </div>
   );
 }
 
-// ─── STUDENT CARD ADMIN COMPONENT ────────────────────────────────────────────
-function StudentCardAdmin({ student, index, onViewStudent, onPause, onTerminate, onBlock, onWarning, onLogout, onExtraTime, onDownload }) {
-  const risk = student.risk ?? 0;
-  const riskColor = risk >= 70 ? "var(--danger)" : risk >= 35 ? "var(--warning)" : "var(--success)";
-  const statusColor = student.status === "safe" ? "var(--success)" : student.status === "violation" ? "var(--danger)" : "var(--warning)";
-  const networkColor = student.networkStatus === "stable" ? "var(--success)" : student.networkStatus === "weak" ? "var(--warning)" : "var(--danger)";
+/* ── Student Detail Drawer ── */
+function StudentDetailModal({ student, onClose }: { student: MonitoringStudent; onClose: () => void }) {
+  const risk = getRiskInfo(student.risk);
+  return (
+    <Modal open onClose={onClose} title="Student Monitor" size="lg">
+      <div className="grid grid-cols-5 gap-5">
+        <div className="col-span-2 space-y-4">
+          <div className="flex items-center gap-3">
+            <Avatar name={student.name} size="lg" online={student.isOnline} />
+            <div>
+              <p className="text-[14px] font-semibold text-text-primary">{student.name}</p>
+              <p className="text-[12px] text-text-muted">{student.regno} · {student.dept}</p>
+              <Badge variant={student.status === "violation" ? "danger" : student.status === "warning" ? "warning" : "success"} dot size="sm" className="mt-1">
+                {student.status}
+              </Badge>
+            </div>
+          </div>
+          <RiskMeter score={student.risk} size="lg" />
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Network",   value: student.networkStatus, color: student.networkStatus === "stable" ? "#4ADE80" : "#F87171" },
+              { label: "Tabs",      value: `${student.tabCount ?? 1} open`,   color: (student.tabCount ?? 1) > 1 ? "#FCD34D" : "#4ADE80" },
+              { label: "Clipboard", value: student.clipboardActive ? "Active" : "Clear", color: student.clipboardActive ? "#FCD34D" : "#4ADE80" },
+              { label: "Duration",  value: `${student.examDuration ?? 0}m`,  color: "#9CA3AF" },
+            ].map((item) => (
+              <div key={item.label} className="p-2.5 rounded-xl bg-surface-2/60">
+                <p className="text-[10px] text-text-muted uppercase tracking-wide">{item.label}</p>
+                <p className="text-[12.5px] font-semibold mt-0.5" style={{ color: item.color }}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="col-span-3 space-y-4">
+          <div>
+            <p className="text-[12px] text-text-muted uppercase tracking-wide font-medium mb-2">Violation Timeline</p>
+            {student.violations.length === 0 ? (
+              <div className="flex items-center gap-2 py-4 text-success">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-[13px]">No violations recorded</span>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-52 overflow-y-auto no-scrollbar">
+                {student.violations.map((v, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-surface-2/50">
+                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                      v.severity === "critical" ? "bg-danger" : v.severity === "medium" ? "bg-warning" : "bg-text-muted"
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[12.5px] font-medium text-text-primary">{v.type}</p>
+                        <span className="text-[11px] text-text-muted">{v.time}</span>
+                      </div>
+                      {v.detail && <p className="text-[11.5px] text-text-muted mt-0.5">{v.detail}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {student.runningApps && student.runningApps.length > 0 && (
+            <div>
+              <p className="text-[12px] text-text-muted uppercase tracking-wide font-medium mb-2">Running Applications</p>
+              <div className="flex flex-wrap gap-2">
+                {student.runningApps.map((app) => (
+                  <span key={app} className="px-2.5 py-1 rounded-lg bg-danger/10 border border-danger/20 text-[11.5px] text-danger">{app}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose}>Close</Button>
+        <Button variant="danger"   icon={<AlertTriangle className="w-3.5 h-3.5" />}>Warn Student</Button>
+        <Button variant="secondary" icon={<Shield className="w-3.5 h-3.5" />}>End Exam</Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+/* ── Timeline Panel ── */
+function TimelinePanel() {
+  return (
+    <div className="space-y-0">
+      {MOCK_TIMELINE.map((event, i) => (
+        <div key={event.id} className="flex gap-3 pb-4 relative">
+          {i < MOCK_TIMELINE.length - 1 && (
+            <div className="absolute left-3.5 top-6 bottom-0 w-px bg-white/6" />
+          )}
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10 text-[10px] font-bold border ${
+            event.type === "warning"  ? "bg-danger/10  border-danger/25  text-danger" :
+            event.type === "success"  ? "bg-success/10 border-success/25 text-success" :
+            event.type === "system"   ? "bg-purple/10  border-purple/25  text-purple" :
+            "bg-primary/10 border-primary/25 text-primary"
+          }`}>
+            {event.type === "warning" ? "!" : event.type === "success" ? "✓" : event.type === "system" ? "⚡" : "i"}
+          </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[12.5px] font-medium text-text-primary">{event.title}</p>
+              <span className="text-[10.5px] text-text-muted shrink-0">{event.time}</span>
+            </div>
+            <p className="text-[11.5px] text-text-muted mt-0.5">{event.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function AdminMonitoringPage() {
+  const [view,          setView]     = useState<"grid" | "list">("grid");
+  const [filter,        setFilter]   = useState("all");
+  const [activeTab,     setActiveTab] = useState<"students" | "alerts" | "timeline">("students");
+  const [detailStudent, setDetail]   = useState<MonitoringStudent | null>(null);
+
+  const students = MOCK_MONITORING_STUDENTS;
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return students;
+    return students.filter((s) => s.status === filter);
+  }, [filter, students]);
+
+  const violations  = students.filter((s) => s.status === "violation").length;
+  const warnings    = students.filter((s) => s.status === "warning").length;
+  const safe        = students.filter((s) => s.status === "safe").length;
+  const offline     = students.filter((s) => !s.isOnline).length;
+  const unackAlerts = MOCK_AI_ALERTS.filter((a) => !a.acknowledged).length;
 
   return (
-    <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:index*0.02 }}
-      className="rounded-2xl overflow-hidden hover-card"
-      style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-      
-      {/* Live Screen Preview */}
-      <div className="relative aspect-video overflow-hidden" style={{ background:"var(--bg-deep)", borderBottom:"1px solid var(--border)" }}>
-        <div className="absolute inset-0 p-3 space-y-2 opacity-20">
-          {[80,60,90,45,70].map((w,i) => (
-            <div key={i} className="h-1.5 rounded" style={{ width:`${w}%`, background:"var(--border)" }}/>
+    <AppShell variant="admin">
+      <div className="p-6 space-y-5">
+        <PageHeader
+          title="Live Monitoring"
+          description="Real-time examination session overview"
+          badge={<Badge variant="success" dot>4 Active Sessions</Badge>}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>Sessions</Button>
+              <Button variant="danger"    size="sm" icon={<AlertTriangle className="w-3.5 h-3.5" />}>
+                {unackAlerts} Alerts
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Risk summary strip */}
+        <div className="grid grid-cols-5 gap-3">
+          {[
+            { label: "Online",     value: students.filter((s) => s.isOnline).length, color: "text-success", bg: "bg-success/8  border-success/15"  },
+            { label: "Safe",       value: safe,       color: "text-success", bg: "bg-success/8  border-success/15"  },
+            { label: "Warning",    value: warnings,   color: "text-warning", bg: "bg-warning/8  border-warning/15"  },
+            { label: "Violation",  value: violations, color: "text-danger",  bg: "bg-danger/8   border-danger/15"   },
+            { label: "Offline",    value: offline,    color: "text-text-muted", bg: "bg-surface-2 border-white/6"   },
+          ].map((s) => (
+            <div key={s.label} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${s.bg}`}>
+              <span className="text-[12px] text-text-muted">{s.label}</span>
+              <span className={`text-[22px] font-bold font-feature ${s.color}`}>{s.value}</span>
+            </div>
           ))}
         </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Activity size={28} style={{ color:"var(--border)" }}/>
-        </div>
-        
-        {/* LIVE indicator */}
-        <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full"
-          style={{ background:"var(--danger)" }}>
-          <span className="w-1.5 h-1.5 rounded-full bg-white live-blink"/>
-          <span className="text-white text-[9px] font-bold">LIVE</span>
-        </div>
 
-        {/* Network Status */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full"
-          style={{ background:student.networkStatus === "disconnected" ? "var(--danger)" : "rgba(0,0,0,0.7)" }}>
-          <Wifi size={9} style={{ color:"white" }}/>
-          <span className="text-white text-[9px] font-medium">{student.networkStatus}</span>
-        </div>
+        {/* Main layout */}
+        <div className="grid grid-cols-4 gap-4">
+          {/* Student grid — 3 cols */}
+          <div className="col-span-3 space-y-4">
+            <MonitoringToolbar
+              view={view} setView={setView}
+              filter={filter} setFilter={setFilter}
+              studentCount={students.filter((s) => s.isOnline).length}
+              violationCount={violations}
+            />
 
-        {/* Student Avatar */}
-        <div className="absolute bottom-2 left-2 w-8 h-8 rounded-full bg-gradient-to-br from-[#1B4D1E] to-[#F5C800] flex items-center justify-center text-white text-[10px] font-bold"
-          style={{ border:"2px solid var(--card)" }}>
-          {student.avatar}
-        </div>
+            <AnimatePresence mode="sync">
+              <div className={view === "grid"
+                ? "grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3"
+                : "space-y-2"
+              }>
+                {filtered.map((student) => (
+                  <StudentCard
+                    key={student.id}
+                    student={student}
+                    onView={setDetail}
+                    onWarn={() => {}}
+                    onEnd={() => {}}
+                    compact={view === "list"}
+                  />
+                ))}
+              </div>
+            </AnimatePresence>
 
-        {/* Current Window */}
-        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg text-[9px]"
-          style={{ background:"rgba(0,0,0,0.7)", border:"1px solid var(--border)", color:"white" }}>
-          {student.currentWindow}
-        </div>
-      </div>
-
-      {/* Student Info */}
-      <div className="p-3">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-sm truncate" style={{ color:"var(--text-primary)" }}>{student.name}</h3>
-            <p className="text-[10px] truncate" style={{ color:"var(--text-muted)" }}>{student.regno}</p>
+            {filtered.length === 0 && (
+              <div className="flex flex-col items-center py-16 text-text-muted gap-2">
+                <Users className="w-10 h-10 opacity-30" />
+                <p className="text-[14px]">No students match the current filter</p>
+              </div>
+            )}
           </div>
-          <span className={`badge ${student.status === "safe" ? "badge-success" : student.status === "violation" ? "badge-danger" : "badge-warning"} text-[9px] ml-2 shrink-0`}>
-            {student.status}
-          </span>
-        </div>
 
-        {/* Details Grid */}
-        <div className="space-y-1.5 mb-3 text-[10px]">
-          <div className="flex justify-between">
-            <span style={{ color:"var(--text-muted)" }}>Department</span>
-            <span className="font-medium" style={{ color:"var(--text-secondary)" }}>{student.deptCode}</span>
-          </div>
-          <div className="flex justify-between">
-            <span style={{ color:"var(--text-muted)" }}>Class</span>
-            <span className="font-medium truncate ml-2" style={{ color:"var(--text-secondary)" }}>{student.class}</span>
-          </div>
-          <div className="flex justify-between">
-            <span style={{ color:"var(--text-muted)" }}>Exam</span>
-            <span className="font-medium truncate ml-2" style={{ color:"var(--text-secondary)" }}>{student.exam}</span>
-          </div>
-          <div className="flex justify-between">
-            <span style={{ color:"var(--text-muted)" }}>Invigilator</span>
-            <span className="font-medium truncate ml-2" style={{ color:"var(--text-secondary)" }}>{student.invigilator}</span>
-          </div>
-        </div>
+          {/* Right panel — 1 col */}
+          <div className="col-span-1 space-y-4">
+            {/* Tabs */}
+            <div className="card overflow-hidden">
+              <div className="flex border-b border-white/5">
+                {(["students", "alerts", "timeline"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex-1 py-2.5 text-[11.5px] font-medium capitalize transition-colors relative ${
+                      activeTab === tab ? "text-primary" : "text-text-muted hover:text-text-secondary"
+                    }`}
+                  >
+                    {tab}
+                    {tab === "alerts" && unackAlerts > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded-full bg-danger text-white text-[9px] font-bold">{unackAlerts}</span>
+                    )}
+                    {activeTab === tab && (
+                      <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
 
-        {/* Risk Score */}
-        <div className="rounded-xl p-2.5 mb-3" style={{ background:"var(--bg-deep)", border:"1px solid var(--border)" }}>
-          <div className="flex justify-between items-center mb-1.5">
-            <div className="flex items-center gap-1">
-              <Zap size={10} style={{ color:riskColor }}/>
-              <span className="text-[10px] font-medium" style={{ color:"var(--text-muted)" }}>Risk Score</span>
+              <div className="p-4 max-h-[520px] overflow-y-auto no-scrollbar">
+                {activeTab === "students" && (
+                  <div className="space-y-2">
+                    {students
+                      .sort((a, b) => b.risk - a.risk)
+                      .slice(0, 10)
+                      .map((s) => {
+                        const risk = getRiskInfo(s.risk);
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => setDetail(s)}
+                            className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-surface-2/60 transition-colors text-left"
+                          >
+                            <Avatar name={s.name} size="sm" online={s.isOnline} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[12px] font-medium text-text-primary truncate">{s.name}</p>
+                              <div className="w-full bg-surface-3 rounded-full h-1 mt-1">
+                                <div className={`h-1 rounded-full ${risk.barClass}`} style={{ width: `${s.risk}%` }} />
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-semibold shrink-0 font-feature" style={{ color: risk.color }}>{s.risk}%</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {activeTab === "alerts" && (
+                  <div className="space-y-2">
+                    {MOCK_AI_ALERTS.map((alert) => (
+                      <div key={alert.id} className={`p-3 rounded-xl border ${
+                        alert.acknowledged ? "bg-surface-2/30 border-white/5" : "bg-danger/5 border-danger/15"
+                      }`}>
+                        <div className="flex items-start justify-between gap-1 mb-1">
+                          <p className="text-[12px] font-semibold text-text-primary truncate">{alert.studentName}</p>
+                          <Badge variant={alert.acknowledged ? "muted" : "danger"} size="sm">
+                            {alert.acknowledged ? "Done" : "Open"}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-text-muted line-clamp-2">{alert.message}</p>
+                        <p className="text-[10.5px] text-text-muted/60 mt-1">{alert.time} · {alert.confidence}% confidence</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {activeTab === "timeline" && <TimelinePanel />}
+              </div>
             </div>
-            <span className="text-sm font-bold" style={{ color:riskColor }}>{risk}%</span>
-          </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background:"var(--border)" }}>
-            <motion.div initial={{ width:0 }} animate={{ width:`${risk}%` }} transition={{ duration:0.5 }}
-              className={risk >= 70 ? "risk-bar-danger" : risk >= 35 ? "risk-bar-warning" : "risk-bar-safe"}
-              style={{ height:"100%" }}/>
-          </div>
-        </div>
 
-        {/* Violations Count */}
-        {student.violations && student.violations.length > 0 && (
-          <div className="flex items-center gap-1.5 mb-3 px-2 py-1 rounded-lg" style={{ background:"var(--danger-muted)" }}>
-            <AlertTriangle size={10} style={{ color:"var(--danger)" }}/>
-            <span className="text-[10px] font-semibold" style={{ color:"var(--danger)" }}>
-              {student.violations.length} violation{student.violations.length !== 1 ? "s" : ""}
-            </span>
+            {/* Mini chart */}
+            <div className="card p-4">
+              <p className="text-[12px] font-semibold text-text-primary mb-3">Violation Trend</p>
+              <AreaChart data={VIOLATION_TREND_DATA} color={CHART_COLORS.danger} height={100} showGrid={false} />
+            </div>
           </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-1.5">
-          <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-            onClick={() => onViewStudent(student)}
-            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold btn-primary">
-            <Eye size={10}/> View Details
-          </motion.button>
-          <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-            onClick={() => onWarning(student.id)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg"
-            style={{ background:"var(--warning)", color:"white" }}>
-            <MessageSquare size={11}/>
-          </motion.button>
         </div>
       </div>
-    </motion.div>
+
+      {detailStudent && (
+        <StudentDetailModal student={detailStudent} onClose={() => setDetail(null)} />
+      )}
+    </AppShell>
   );
 }

@@ -196,10 +196,10 @@ export const CLASS_VIOLATIONS = {
 export const LIVE_EVENT_POOL = [
   { type:"Browser Switch",      detail:"Chrome tab changed",       severity:"medium"   },
   { type:"Application Switch",  detail:"VS Code opened",           severity:"critical" },
-  { type:"Idle Detected",       detail:"No activity for 5 mins",   severity:"warning"  },
+  { type:"Idle Detected",       detail:"No activity for 5 mins",   severity:"medium"   },
   { type:"Multiple Faces",      detail:"Secondary person detected",severity:"critical" },
   { type:"Copy/Paste",          detail:"Clipboard activity",       severity:"medium"   },
   { type:"Unknown App",         detail:"Terminal opened",          severity:"critical" },
   { type:"Screen Capture",      detail:"Screenshot attempt",       severity:"critical" },
-  { type:"Audio Detected",      detail:"Microphone activity",      severity:"warning"  },
+  { type:"Audio Detected",      detail:"Microphone activity",      severity:"low"      },
 ];

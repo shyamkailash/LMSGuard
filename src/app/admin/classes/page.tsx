@@ -1,212 +1,131 @@
 "use client";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import AdminLayout from "@/components/AdminLayout";
-import { ALL_CLASSES, ALL_STUDENTS, DEPARTMENTS } from "@/data/adminData";
-import { Layers, Plus, Pencil, Trash2, Users, X, CheckCircle, ChevronRight, ArrowLeft } from "lucide-react";
+import { AppShell, PageHeader } from "@/components/layouts";
+import { Badge, Button, Modal, ModalFooter, StatCard, DataTable } from "@/components/ui";
+import type { Column } from "@/components/ui";
+import { AVAILABLE_CLASSES_LIST } from "@/mock/invigilators";
+import { useFilter } from "@/hooks/useFilter";
+import { BookOpen, Plus, Search, Users, Building2, Eye, Pencil, Trash2 } from "lucide-react";
+
+type ClassRow = typeof AVAILABLE_CLASSES_LIST[0];
+
+const COLUMNS: Column<ClassRow>[] = [
+  {
+    key: "label", label: "Class", sortable: true,
+    render: (_, c) => (
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-cyan/10 flex items-center justify-center shrink-0">
+          <BookOpen className="w-3.5 h-3.5 text-cyan" />
+        </div>
+        <div>
+          <p className="text-[13px] font-medium text-text-primary">{c.label}</p>
+          <p className="text-[11.5px] text-text-muted">Room: {c.roomNo}</p>
+        </div>
+      </div>
+    ),
+  },
+  { key: "dept",     label: "Department", sortable: true,
+    render: (v) => <span className="text-[12.5px] text-text-muted">{v as string}</span> },
+  { key: "year",     label: "Year",       sortable: true,
+    render: (v) => <Badge variant="primary" size="sm">{v as string}</Badge> },
+  { key: "section",  label: "Section",    align: "center",
+    render: (v) => <span className="text-[12.5px] font-semibold text-text-secondary">{v as string}</span> },
+  { key: "strength", label: "Strength",   sortable: true, align: "center",
+    render: (v) => (
+      <div className="flex items-center justify-center gap-1.5">
+        <Users className="w-3 h-3 text-text-muted" />
+        <span className="text-[12.5px] font-medium text-text-secondary font-feature">{v as number}</span>
+      </div>
+    ),
+  },
+  { key: "roomNo",   label: "Room",
+    render: (v) => <span className="text-[12px] text-text-muted">{v as string}</span> },
+  {
+    key: "actions", label: "", align: "right",
+    render: () => (
+      <div className="flex items-center justify-end gap-1">
+        <button className="icon-btn"><Eye    className="w-3.5 h-3.5" /></button>
+        <button className="icon-btn"><Pencil className="w-3.5 h-3.5" /></button>
+        <button className="icon-btn text-danger/60 hover:text-danger hover:bg-danger/10"><Trash2 className="w-3.5 h-3.5" /></button>
+      </div>
+    ),
+  },
+];
 
 export default function ClassesPage() {
-  const [showModal,    setShowModal]    = useState(false);
-  const [viewClass, setViewClass] = useState<string | null>(null); // class id for slide panel
-  const [form,         setForm]         = useState({ name:"", dept:"", year:"3rd", section:"A" });
-  const [saved,        setSaved]        = useState(false);
-
-  const studentsByClass = (classId) => ALL_STUDENTS.filter(s => s.class === classId);
-
-  async function handleAdd(e) {
-    e.preventDefault();
-    setSaved(true);
-    await new Promise(r => setTimeout(r, 900));
-    setSaved(false); setShowModal(false);
-    setForm({ name:"", dept:"", year:"3rd", section:"A" });
-  }
-
-  const total    = ALL_CLASSES.length;
-  const enrolled = ALL_CLASSES.reduce((a, c) => a + c.strength, 0);
+  const [modalOpen, setModalOpen] = useState(false);
+  const { search, setSearch, paginated, total, page, setPage, totalPages, handleSort, sortKey, sortDir } =
+    useFilter({ data: AVAILABLE_CLASSES_LIST as unknown as Record<string, unknown>[], searchKeys: ["label", "dept", "year"] });
 
   return (
-    <AdminLayout title="Classes" subtitle="Manage all classes and student assignments">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex flex-wrap gap-3">
+    <AppShell variant="admin">
+      <div className="p-6 space-y-6">
+        <PageHeader
+          title="Classes"
+          description={`${AVAILABLE_CLASSES_LIST.length} classes across all departments`}
+          actions={
+            <Button variant="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModalOpen(true)}>
+              Add Class
+            </Button>
+          }
+        />
+
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard index={0} label="Total Classes"  value={AVAILABLE_CLASSES_LIST.length} icon={<BookOpen  className="w-4 h-4" />} color="cyan"    />
+          <StatCard index={1} label="Total Strength" value={AVAILABLE_CLASSES_LIST.reduce((a, c) => a + c.strength, 0)} icon={<Users className="w-4 h-4" />} color="primary" />
+          <StatCard index={2} label="Departments"    value={[...new Set(AVAILABLE_CLASSES_LIST.map((c) => c.dept))].length} icon={<Building2 className="w-4 h-4" />} color="purple"  />
+          <StatCard index={3} label="Avg Strength"   value={Math.round(AVAILABLE_CLASSES_LIST.reduce((a, c) => a + c.strength, 0) / AVAILABLE_CLASSES_LIST.length)} icon={<Users className="w-4 h-4" />} color="success" />
+        </div>
+
+        <div className="card p-5">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <p className="section-title">All Classes</p>
+              <p className="section-subtitle">{total} results</p>
+            </div>
+            <div className="relative flex items-center">
+              <Search className="absolute left-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+              <input
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search classes…"
+                className="input-premium pl-8 w-56 h-8 text-[12.5px]"
+              />
+            </div>
+          </div>
+          <DataTable
+            columns={COLUMNS}
+            data={paginated as unknown as ClassRow[]}
+            page={page} totalPages={totalPages} total={total} perPage={20}
+            onPageChange={setPage}
+            sortKey={sortKey as string | null} sortDir={sortDir}
+            onSort={handleSort as (k: string) => void}
+            emptyMessage="No classes found"
+            emptyIcon={<BookOpen className="w-8 h-8 text-text-muted/40" />}
+          />
+        </div>
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Class" size="sm">
+        <div className="space-y-4">
           {[
-            { label:"Total Classes",    value:total,    color:"var(--primary)" },
-            { label:"Total Enrolled",   value:enrolled, color:"var(--primary)"  },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="px-4 py-2 rounded-xl"
-              style={{ background:"var(--card)", border:`1px solid ${color}30` }}>
-              <span className="text-sm font-bold" style={{ color }}>{value}</span>
-              <span className="text-xs ml-2" style={{ color:"var(--text-muted)" }}>{label}</span>
+            { label: "Class Name",   placeholder: "e.g. CSE – 3rd Year A" },
+            { label: "Department",   placeholder: "Computer Science & Engineering" },
+            { label: "Year",         placeholder: "3rd Year" },
+            { label: "Section",      placeholder: "A" },
+            { label: "Room No",      placeholder: "Lab 101" },
+            { label: "Strength",     placeholder: "20" },
+          ].map((f) => (
+            <div key={f.label} className="space-y-1.5">
+              <label className="text-[12.5px] font-medium text-text-secondary">{f.label}</label>
+              <input className="input-premium w-full" placeholder={f.placeholder} />
             </div>
           ))}
         </div>
-        <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-          style={{ background:"linear-gradient(135deg,#1B4D1E,#0F2D12)" }}>
-          <Plus size={13}/> Add Class
-        </motion.button>
-      </div>
-
-      <div className="flex gap-5">
-        {/* Table */}
-        <div className="flex-1 rounded-2xl overflow-hidden"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_1.5fr] gap-4 px-5 py-3"
-            style={{ borderBottom:"1px solid var(--border)", background:"var(--bg-deep)" }}>
-            {["Class","Department","Year","Section","Enrolled","Actions"].map(h => (
-              <p key={h} className="text-[10px] font-bold uppercase tracking-wider" style={{ color:"var(--text-muted)" }}>{h}</p>
-            ))}
-          </div>
-          {ALL_CLASSES.map((c, i) => {
-            const studs = studentsByClass(c.id);
-            return (
-              <motion.div key={c.id}
-                initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.06 }}
-                className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_1.5fr] gap-4 px-5 py-3 table-row"
-                style={{ borderBottom:"1px solid var(--border-soft)" }}>
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ background:"var(--purple-muted)", border:"1px solid rgba(27,77,30,0.2)" }}>
-                    <Layers size={12} style={{ color:"var(--primary)" }}/>
-                  </div>
-                  <span className="text-sm font-semibold" style={{ color:"var(--text-primary)" }}>{c.name}</span>
-                </div>
-                <span className="text-xs flex items-center" style={{ color:"var(--text-secondary)" }}>{c.dept}</span>
-                <span className="text-xs flex items-center" style={{ color:"var(--text-muted)" }}>{c.year}</span>
-                <span className="text-xs flex items-center" style={{ color:"var(--text-muted)" }}>{c.section}</span>
-                <span className="text-sm font-bold flex items-center" style={{ color:"var(--primary)" }}>
-                  {studs.length}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button className="w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ background:"var(--primary-muted)", border:"1px solid rgba(37,99,235,0.2)", color:"var(--primary)" }}>
-                    <Pencil size={11}/>
-                  </button>
-                  <button onClick={() => setViewClass(viewClass===c.id ? null : c.id)}
-                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium"
-                    style={{ background:viewClass===c.id?"var(--purple-muted)":"var(--bg-deep)",
-                             color:viewClass===c.id?"var(--primary)":"var(--text-muted)",
-                             border:`1px solid ${viewClass===c.id?"rgba(124,58,237,0.3)":"var(--border)"}` }}>
-                    <Users size={10}/> Students
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
-          <div className="px-5 py-3" style={{ borderTop:"1px solid var(--border)", background:"var(--bg-deep)" }}>
-            <p className="text-xs" style={{ color:"var(--text-muted)" }}>{ALL_CLASSES.length} classes</p>
-          </div>
-        </div>
-
-        {/* Student panel */}
-        <AnimatePresence>
-          {viewClass && (
-            <motion.div initial={{ opacity:0, x:24, width:0 }} animate={{ opacity:1, x:0, width:280 }}
-              exit={{ opacity:0, x:24, width:0 }} transition={{ duration:0.25 }}
-              className="rounded-2xl overflow-hidden shrink-0"
-              style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-              <div className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom:"1px solid var(--border)", background:"var(--bg-deep)" }}>
-                <p className="text-sm font-semibold" style={{ color:"var(--text-primary)" }}>
-                  {ALL_CLASSES.find(c=>c.id===viewClass)?.name}
-                </p>
-                <button onClick={() => setViewClass(null)}
-                  className="w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ background:"var(--border)", color:"var(--text-muted)" }}>
-                  <X size={11}/>
-                </button>
-              </div>
-              <div className="overflow-y-auto" style={{ maxHeight:400 }}>
-                {studentsByClass(viewClass).length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <p className="text-sm" style={{ color:"var(--text-muted)" }}>No students enrolled</p>
-                  </div>
-                ) : (
-                  studentsByClass(viewClass).map((s, i) => (
-                    <div key={s.id} className="flex items-center gap-2.5 px-4 py-2.5 table-row"
-                      style={{ borderBottom:"1px solid var(--border-soft)" }}>
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#1B4D1E] to-[#F5C800]
-                                      flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                        {s.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate" style={{ color:"var(--text-primary)" }}>{s.name}</p>
-                        <p className="text-[10px]" style={{ color:"var(--text-muted)" }}>{s.regno}</p>
-                      </div>
-                      <span className={`badge ${s.status==="active"?"badge-success":"badge-danger"} text-[9px] shrink-0`}>
-                        {s.status}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Add Modal */}
-      <AnimatePresence>
-        {showModal && (
-          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background:"rgba(0,0,0,0.6)", backdropFilter:"blur(4px)" }}
-            onClick={() => setShowModal(false)}>
-            <motion.div initial={{ scale:0.9, y:16 }} animate={{ scale:1, y:0 }} exit={{ scale:0.9 }}
-              transition={{ type:"spring", stiffness:280, damping:24 }}
-              className="w-full max-w-sm rounded-2xl overflow-hidden"
-              style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow-xl)" }}
-              onClick={e=>e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4"
-                style={{ borderBottom:"1px solid var(--border)", background:"rgba(124,58,237,0.08)" }}>
-                <h3 className="font-bold" style={{ color:"var(--text-primary)" }}>Add Class</h3>
-                <button onClick={() => setShowModal(false)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background:"var(--bg-deep)", color:"var(--text-muted)" }}>
-                  <X size={13}/>
-                </button>
-              </div>
-              <form onSubmit={handleAdd} className="p-5 space-y-3">
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>Class Name</label>
-                  <input type="text" value={form.name} placeholder="e.g. CSE 4th Year C"
-                    onChange={e => setForm(f=>({...f,name:e.target.value}))} className="input-field" required/>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>Department</label>
-                  <select value={form.dept} onChange={e=>setForm(f=>({...f,dept:e.target.value}))} className="input-field" required>
-                    <option value="">Select…</option>
-                    {DEPARTMENTS.map(d=><option key={d.id} value={d.name}>{d.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>Year</label>
-                    <select value={form.year} onChange={e=>setForm(f=>({...f,year:e.target.value}))} className="input-field">
-                      {["1st","2nd","3rd","4th"].map(y=><option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>Section</label>
-                    <select value={form.section} onChange={e=>setForm(f=>({...f,section:e.target.value}))} className="input-field">
-                      {["A","B","C","D"].map(s=><option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <motion.button whileHover={{ scale:1.01 }} whileTap={{ scale:0.99 }} type="submit"
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
-                    style={{ background:saved?"var(--success)":"linear-gradient(135deg,#1B4D1E,#0F2D12)" }}>
-                    {saved?<><CheckCircle size={13}/>Added</>:<><Plus size={13}/>Add Class</>}
-                  </motion.button>
-                  <button type="button" onClick={()=>setShowModal(false)} className="px-4 py-2.5 rounded-xl text-sm btn-secondary">Cancel</button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </AdminLayout>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
+          <Button variant="primary" onClick={() => setModalOpen(false)}>Add Class</Button>
+        </ModalFooter>
+      </Modal>
+    </AppShell>
   );
 }

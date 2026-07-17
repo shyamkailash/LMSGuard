@@ -1,20 +1,24 @@
-import "./globals.css";
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata = {
-  title: "LMSGuard AI — Examination Monitoring System",
-  description: "AI Powered Online Examination Monitoring System",
+  title: "LMSGuard V2 — AI Examination Monitoring",
+  description: "Enterprise-grade AI powered examination monitoring platform",
+  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com"/>
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body>{children}</body>
+      <body className="bg-background text-text-primary antialiased">{children}</body>
     </html>
   );
 }

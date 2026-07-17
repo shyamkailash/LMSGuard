@@ -1,279 +1,285 @@
 "use client";
-import { useState, useEffect } from "react";
+import { AppShell, PageHeader } from "@/components/layouts";
+import { StatCard, Badge } from "@/components/ui";
+import { AreaChart, BarChartComponent, DonutChart } from "@/components/features/charts";
 import { motion } from "framer-motion";
-import AdminLayout from "@/components/AdminLayout";
-import { ViolationTrendChart, RiskPieChart } from "@/components/Charts";
+import { MOCK_SYSTEM_STATS, MOCK_SESSIONS } from "@/mock/invigilators";
+import { MOCK_VIOLATIONS, MOCK_AI_ALERTS } from "@/mock/violations";
+import { MOCK_EXAMS, EXAM_TREND_DATA, VIOLATION_TREND_DATA, RISK_DISTRIBUTION_DATA, ATTENDANCE_TREND_DATA } from "@/mock/exams";
+import { DEPARTMENT_ANALYTICS } from "@/mock/departments";
+import { ANIMATION_VARIANTS, CHART_COLORS } from "@/constants";
+import { getRiskInfo } from "@/hooks/useRisk";
+import { formatDistanceToNow } from "date-fns";
 import {
-  Users, Eye, BookOpen, AlertTriangle, Server,
-  Wifi, Cpu, Shield, Activity, ChevronRight,
-  GraduationCap, Building2, Zap, Monitor
+  GraduationCap, UserCog, ClipboardList, AlertTriangle,
+  Activity, CheckCircle2, Clock, Building2, TrendingUp,
+  ExternalLink, Circle,
 } from "lucide-react";
-import { SYSTEM_STATS, ALL_VIOLATIONS, ACTIVE_SESSIONS, ALL_STUDENTS, ALL_INVIGILATORS } from "@/data/adminData";
+import Link from "next/link";
 
-import type { LucideIcon } from "lucide-react";
+/* ── Session status badge ── */
+function SessionBadge({ status }: { status: string }) {
+  if (status === "active")  return <Badge variant="success" dot>Active</Badge>;
+  if (status === "paused")  return <Badge variant="warning" dot>Paused</Badge>;
+  return <Badge variant="muted" dot>Ended</Badge>;
+}
 
-function StatCard({
-  title, value, icon: Icon, color, bg, border, subtitle, index = 0,
-}: {
-  title:     string;
-  value:     string | number;
-  icon:      LucideIcon;
-  color:     string;
-  bg:        string;
-  border:    string;
-  subtitle?: string;
-  index?:    number;
-}) {
+/* ── Recent violation row ── */
+function ViolationRow({ v }: { v: typeof MOCK_VIOLATIONS[0] }) {
+  const sev = v.severity;
+  const colorMap = {
+    critical: "text-danger",
+    high:     "text-orange-400",
+    medium:   "text-warning",
+    low:      "text-text-muted",
+  };
   return (
-    <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }}
-      transition={{ delay:index*0.07 }}
-      whileHover={{ y:-3, transition:{ duration:0.18 } }}
-      className="relative overflow-hidden rounded-2xl p-5"
-      style={{ background:"var(--card)", border:`1px solid ${border}`, boxShadow:"var(--shadow)" }}>
-      <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full opacity-40" style={{ background:bg }}/>
-      <div className="relative flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--text-muted)" }}>
-            {title}
-          </p>
-          <p className="text-3xl font-bold" style={{ color:"var(--text-primary)" }}>{value}</p>
-          {subtitle && <p className="text-xs mt-1" style={{ color:"var(--text-muted)" }}>{subtitle}</p>}
-        </div>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-             style={{ background:bg, border:`1px solid ${border}` }}>
-          <Icon size={17} style={{ color }}/>
-        </div>
+    <div className="flex items-center gap-3 py-3 border-b border-white/4 last:border-0 hover:bg-surface-2/30 px-1 rounded-lg transition-colors">
+      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${sev === "critical" ? "bg-danger" : sev === "medium" ? "bg-warning" : "bg-text-muted"}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[12.5px] font-medium text-text-primary truncate">{v.studentName}</p>
+        <p className="text-[11.5px] text-text-muted">{v.type} · {v.assignedClass}</p>
       </div>
-    </motion.div>
+      <div className="text-right shrink-0">
+        <p className={`text-[11.5px] font-semibold ${colorMap[sev as keyof typeof colorMap] ?? "text-text-muted"}`}>
+          {sev.charAt(0).toUpperCase() + sev.slice(1)}
+        </p>
+        <p className="text-[11px] text-text-muted">{v.time}</p>
+      </div>
+    </div>
   );
 }
 
-import type { AdminAccount } from "@/types";
+/* ── Active session row ── */
+function SessionRow({ s }: { s: typeof MOCK_SESSIONS[0] }) {
+  const risk = getRiskInfo(s.avgRisk ?? 30);
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-white/4 last:border-0 hover:bg-surface-2/30 px-1 rounded-lg transition-colors">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <Activity className="w-3.5 h-3.5 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[12.5px] font-medium text-text-primary truncate">{s.exam}</p>
+        <p className="text-[11.5px] text-text-muted">{s.class} · {s.invigilator}</p>
+      </div>
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <SessionBadge status={s.status} />
+        <p className="text-[11px]" style={{ color: risk.color }}>{s.avgRisk}% avg risk</p>
+      </div>
+    </div>
+  );
+}
+
+const RISK_DONUT = [
+  { name: "Safe (0–30)",     value: 48, color: CHART_COLORS.success },
+  { name: "Warning (31–65)", value: 32, color: CHART_COLORS.warning },
+  { name: "Critical (66+)",  value: 20, color: CHART_COLORS.danger  },
+];
+
+const DEPT_BAR = DEPARTMENT_ANALYTICS.map((d) => ({ name: d.name, value: d.violations }));
 
 export default function AdminDashboardPage() {
-  const [admin, setAdmin] = useState<AdminAccount | null>(null);
-  useEffect(() => {
-    try { const r = sessionStorage.getItem("adminProfile"); if (r) setAdmin(JSON.parse(r)); } catch {}
-  }, []);
-
-  const recentViolations = ALL_VIOLATIONS.slice(0,5);
-  const activeSessions   = ACTIVE_SESSIONS.filter(s => s.status==="active");
-
-  const SEV = { critical:"badge-danger", medium:"badge-warning", warning:"badge-warning" };
+  const stats = MOCK_SYSTEM_STATS;
+  const activeSessions = MOCK_SESSIONS.filter((s) => s.status !== "ended");
+  const recentViolations = MOCK_VIOLATIONS.slice(0, 6);
+  const unackAlerts = MOCK_AI_ALERTS.filter((a) => !a.acknowledged).length;
 
   return (
-    <AdminLayout title="Admin Dashboard" subtitle="System-wide overview — Full Control">
-      {/* Welcome */}
-      <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
-        className="rounded-2xl p-5 mb-6 relative overflow-hidden"
-        style={{ background:"linear-gradient(135deg,rgba(27,77,30,0.12),rgba(37,99,235,0.08))",
-                 border:"1px solid rgba(27,77,30,0.2)" }}>
-        <div className="absolute right-5 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full opacity-10 pointer-events-none"
-             style={{ background:"var(--primary)" }}/>
-        <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color:"var(--primary)" }}>
-            Admin Control Panel 🛡️
-          </p>
-          <h2 className="text-xl font-bold mb-1" style={{ color:"var(--text-primary)" }}>
-            Welcome, {admin?.name || "Administrator"}
-          </h2>
-          <p className="text-sm" style={{ color:"var(--text-muted)" }}>
-            {admin?.role} · Full system access · All departments and exams visible
-          </p>
+    <AppShell variant="admin">
+      <div className="p-6 space-y-6">
+        <PageHeader
+          title="Dashboard"
+          description={`Welcome back · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}
+          badge={<Badge variant="success" dot>System Online</Badge>}
+          actions={
+            <Link href="/admin/monitoring" className="btn btn-primary gap-2 text-[13px]">
+              <Activity className="w-3.5 h-3.5" />
+              Live Monitoring
+            </Link>
+          }
+        />
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <StatCard index={0} label="Total Students"    value={stats.totalStudents}    icon={<GraduationCap className="w-5 h-5" />} color="primary" delta="+12 this month" deltaType="up"   description="Across all departments" />
+          <StatCard index={1} label="Invigilators"      value={stats.totalInvigilators} icon={<UserCog       className="w-5 h-5" />} color="cyan"    delta="All verified"   deltaType="neutral" description="Active staff members" />
+          <StatCard index={2} label="Active Exams"      value={stats.activeExams}       icon={<ClipboardList className="w-5 h-5" />} color="success" delta="Running now"     deltaType="up"   description="Live sessions today" />
+          <StatCard index={3} label="Total Violations"  value={stats.totalViolations}   icon={<AlertTriangle className="w-5 h-5" />} color="danger"  delta={`${unackAlerts} unresolved`} deltaType={unackAlerts > 0 ? "down" : "neutral"} description="Flagged this session" />
         </div>
-      </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <StatCard title="Total Students"    value={SYSTEM_STATS.totalStudents}     icon={GraduationCap} color="var(--primary)" bg="var(--primary-muted)" border="rgba(37,99,235,0.18)"   subtitle="All departments" index={0}/>
-        <StatCard title="Invigilators"      value={SYSTEM_STATS.totalInvigilators} icon={Eye}           color="var(--primary)"  bg="var(--purple-muted)"  border="rgba(124,58,237,0.18)"  subtitle="System-wide"     index={1}/>
-        <StatCard title="Active Exams"      value={SYSTEM_STATS.activeExams}       icon={BookOpen}      color="var(--success)" bg="var(--success-muted)" border="rgba(22,163,74,0.18)"   subtitle="Ongoing now"     index={2}/>
-        <StatCard title="Total Violations"  value={SYSTEM_STATS.totalViolations}   icon={AlertTriangle} color="var(--danger)"  bg="var(--danger-muted)"  border="rgba(220,38,38,0.18)"   subtitle="Today"           index={3}/>
-      </div>
+        {/* Second row stats */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <StatCard index={4} label="Departments"      value={stats.totalDepartments ?? 6} icon={<Building2     className="w-5 h-5" />} color="purple"  />
+          <StatCard index={5} label="Classes"          value={stats.totalClasses ?? 14}    icon={<ClipboardList className="w-5 h-5" />} color="primary" />
+          <StatCard index={6} label="AI Accuracy"      value={stats.aiAccuracy}            icon={<TrendingUp    className="w-5 h-5" />} color="success" description="Detection precision" />
+          <StatCard index={7} label="Server Uptime"    value={stats.serverUptime}          icon={<CheckCircle2  className="w-5 h-5" />} color="cyan"    description="Last 30 days" />
+        </div>
 
-      {/* System status + active sessions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-        {/* System Status */}
-        <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
-          className="rounded-2xl p-4"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <h3 className="text-xs font-semibold uppercase tracking-wider mb-3"
-              style={{ color:"var(--text-muted)" }}>System Status</h3>
-          <div className="space-y-2.5">
-            {[
-              { label:"AI Engine",     value:"Running",   icon:Cpu,      color:"var(--success)" },
-              { label:"Server",        value:"Stable",    icon:Server,   color:"var(--success)" },
-              { label:"Network",       value:"Online",    icon:Wifi,     color:"var(--success)" },
-              { label:"AI Accuracy",   value:SYSTEM_STATS.aiAccuracy,   icon:Zap,      color:"var(--primary)"  },
-              { label:"Server Uptime", value:SYSTEM_STATS.serverUptime, icon:Activity, color:"var(--success)" },
-            ].map(({ label, value, icon:Icon, color }) => (
-              <div key={label} className="flex items-center justify-between py-1.5"
-                   style={{ borderBottom:"1px solid var(--border-soft)" }}>
-                <div className="flex items-center gap-2">
-                  <Icon size={12} style={{ color:"var(--text-muted)" }}/>
-                  <span className="text-sm" style={{ color:"var(--text-secondary)" }}>{label}</span>
+        {/* Charts row 1 */}
+        <motion.div
+          className="grid grid-cols-3 gap-4"
+          variants={ANIMATION_VARIANTS.stagger}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Exam trend */}
+          <motion.div variants={ANIMATION_VARIANTS.fadeUp} className="card p-5 col-span-2">
+            <div className="section-header">
+              <div>
+                <p className="section-title">Exam Activity</p>
+                <p className="section-subtitle">Exams scheduled vs completed per month</p>
+              </div>
+              <Badge variant="primary">Monthly</Badge>
+            </div>
+            <AreaChart
+              data={EXAM_TREND_DATA}
+              color={CHART_COLORS.primary}
+              color2={CHART_COLORS.success}
+              dataKey="value" dataKey2="value2"
+              label2="Completed"
+              height={200}
+            />
+          </motion.div>
+
+          {/* Risk donut */}
+          <motion.div variants={ANIMATION_VARIANTS.fadeUp} className="card p-5">
+            <div className="section-header">
+              <div>
+                <p className="section-title">Risk Distribution</p>
+                <p className="section-subtitle">Student risk levels</p>
+              </div>
+            </div>
+            <DonutChart
+              data={RISK_DONUT}
+              centerLabel="Students"
+              centerValue={`${stats.onlineStudents ?? 48}`}
+              height={220}
+            />
+          </motion.div>
+        </motion.div>
+
+        {/* Charts row 2 */}
+        <div className="grid grid-cols-3 gap-4">
+          {/* Violations trend */}
+          <motion.div variants={ANIMATION_VARIANTS.fadeUp} initial="hidden" animate="visible" className="card p-5">
+            <div className="section-header">
+              <p className="section-title">Violations This Week</p>
+            </div>
+            <BarChartComponent
+              data={VIOLATION_TREND_DATA}
+              color={CHART_COLORS.danger}
+              height={180}
+            />
+          </motion.div>
+
+          {/* Dept violations */}
+          <motion.div variants={ANIMATION_VARIANTS.fadeUp} initial="hidden" animate="visible" className="card p-5">
+            <div className="section-header">
+              <p className="section-title">Violations by Dept</p>
+            </div>
+            <BarChartComponent
+              data={DEPT_BAR}
+              multiColor
+              height={180}
+            />
+          </motion.div>
+
+          {/* Attendance chart */}
+          <motion.div variants={ANIMATION_VARIANTS.fadeUp} initial="hidden" animate="visible" className="card p-5">
+            <div className="section-header">
+              <p className="section-title">Attendance vs Pass Rate</p>
+            </div>
+            <AreaChart
+              data={ATTENDANCE_TREND_DATA}
+              color={CHART_COLORS.success}
+              color2={CHART_COLORS.cyan}
+              dataKey="value" dataKey2="value2"
+              label2="Pass %"
+              height={180}
+            />
+          </motion.div>
+        </div>
+
+        {/* Bottom tables */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Active sessions */}
+          <div className="card p-5">
+            <div className="section-header">
+              <div>
+                <p className="section-title">Active Sessions</p>
+                <p className="section-subtitle">{activeSessions.length} sessions running</p>
+              </div>
+              <Link href="/admin/monitoring" className="btn btn-ghost gap-1.5 text-[12px]">
+                View all <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="space-y-0">
+              {activeSessions.map((s) => (
+                <SessionRow key={s.id} s={s} />
+              ))}
+            </div>
+          </div>
+
+          {/* Recent violations */}
+          <div className="card p-5">
+            <div className="section-header">
+              <div>
+                <p className="section-title">Recent Violations</p>
+                <p className="section-subtitle">{recentViolations.length} latest events</p>
+              </div>
+              <Link href="/admin/violations" className="btn btn-ghost gap-1.5 text-[12px]">
+                View all <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+            <div>
+              {recentViolations.map((v) => (
+                <ViolationRow key={v.id} v={v} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* AI alerts strip */}
+        <div className="card p-5">
+          <div className="section-header mb-4">
+            <div>
+              <p className="section-title">AI Alerts</p>
+              <p className="section-subtitle">{unackAlerts} unacknowledged alerts require attention</p>
+            </div>
+            <Link href="/admin/monitoring" className="btn btn-danger gap-1.5 text-[12px]">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Review Alerts
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {MOCK_AI_ALERTS.slice(0, 3).map((alert) => (
+              <div
+                key={alert.id}
+                className={`rounded-xl p-4 border ${
+                  alert.severity === "critical"
+                    ? "bg-danger/5 border-danger/15"
+                    : "bg-warning/5 border-warning/15"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="text-[12.5px] font-semibold text-text-primary truncate">{alert.studentName}</p>
+                  <Badge variant={alert.severity === "critical" ? "danger" : "warning"} size="sm">
+                    {alert.confidence}%
+                  </Badge>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background:color }}/>
-                  <span className="text-sm font-semibold" style={{ color }}>{value}</span>
+                <p className="text-[11.5px] text-text-muted line-clamp-2 mb-2">{alert.message}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-text-muted">{alert.class} · {alert.time}</span>
+                  {alert.acknowledged
+                    ? <Badge variant="success" size="sm">Resolved</Badge>
+                    : <Badge variant="danger"  size="sm">Open</Badge>
+                  }
                 </div>
               </div>
             ))}
           </div>
-        </motion.div>
-
-        {/* Active Monitoring Sessions */}
-        <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.37 }}
-          className="rounded-2xl p-4"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color:"var(--text-muted)" }}>Active Monitoring Sessions</h3>
-            <a href="/admin/monitoring" className="text-xs font-medium" style={{ color:"var(--primary)" }}>
-              View all
-            </a>
-          </div>
-          <div className="space-y-2">
-            {activeSessions.map((s, i) => (
-              <motion.div key={s.id} initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }}
-                transition={{ delay:0.37+i*0.07 }}
-                className="flex items-center justify-between p-2.5 rounded-xl"
-                style={{ background:"var(--bg-deep)", border:"1px solid var(--border)" }}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <Monitor size={12} style={{ color:"var(--primary)" }}/>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold truncate" style={{ color:"var(--text-primary)" }}>
-                      {s.class} · {s.exam}
-                    </p>
-                    <p className="text-[10px]" style={{ color:"var(--text-muted)" }}>
-                      {s.invigilator} · {s.students} students
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                  {s.violations > 0 && (
-                    <span className="badge badge-danger text-[9px]">{s.violations}</span>
-                  )}
-                  <span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background:"var(--success)" }}/>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+        </div>
       </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-        <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.44 }}
-          className="lg:col-span-2 rounded-2xl p-4"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>
-                Violation Trend — System Wide
-              </h3>
-              <p className="text-[11px]" style={{ color:"var(--text-muted)" }}>All departments combined</p>
-            </div>
-            <div className="flex gap-3">
-              {[["Violations","var(--danger)"],["Safe","var(--success)"]].map(([l,c])=>(
-                <div key={l} className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full" style={{ background:c }}/>
-                  <span className="text-[10px]" style={{ color:"var(--text-muted)" }}>{l}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <ViolationTrendChart/>
-        </motion.div>
-        <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.5 }}
-          className="rounded-2xl p-4"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <h3 className="font-semibold text-sm mb-1" style={{ color:"var(--text-primary)" }}>Risk Distribution</h3>
-          <p className="text-[11px] mb-2" style={{ color:"var(--text-muted)" }}>All students</p>
-          <RiskPieChart/>
-        </motion.div>
-      </div>
-
-      {/* Recent Violations + Quick Links */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Recent Violations */}
-        <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.56 }}
-          className="lg:col-span-2 rounded-2xl p-4"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>
-                Recent Violations — All Classes
-              </h3>
-              <p className="text-[11px]" style={{ color:"var(--text-muted)" }}>System-wide detection</p>
-            </div>
-            <a href="/admin/violations"
-               className="flex items-center gap-1 text-xs font-medium" style={{ color:"var(--primary)" }}>
-              View all <ChevronRight size={11}/>
-            </a>
-          </div>
-          <div className="space-y-2">
-            {recentViolations.map((v, i) => (
-              <motion.div key={v.id}
-                initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.05 }}
-                className="flex items-center gap-3 p-3 rounded-xl"
-                style={{ background:"var(--bg-deep)", border:"1px solid var(--border)" }}>
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#1B4D1E] to-[#F5C800]
-                                flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                  {v.studentName.split(" ").map(n=>n[0]).join("").slice(0,2)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate" style={{ color:"var(--text-primary)" }}>
-                      {v.studentName}
-                    </p>
-                    <span className="text-[10px]" style={{ color:"var(--text-muted)" }}>{v.class}</span>
-                    <span className={`badge ${SEV[v.severity]||"badge-warning"} text-[9px]`}>{v.severity}</span>
-                  </div>
-                  <p className="text-xs truncate" style={{ color:"var(--text-muted)" }}>
-                    {v.type} · {v.exam}
-                  </p>
-                </div>
-                <span className="text-[11px] font-mono shrink-0" style={{ color:"var(--text-muted)" }}>
-                  {v.time}
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.6 }}
-          className="rounded-2xl p-4"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <h3 className="font-semibold text-sm mb-4" style={{ color:"var(--text-primary)" }}>Quick Actions</h3>
-          <div className="space-y-2">
-            {[
-              { label:"Manage Students",    href:"/admin/students",     icon:GraduationCap, color:"var(--primary)",  bg:"var(--primary-muted)"  },
-              { label:"Manage Invigilators",href:"/admin/invigilators", icon:Eye,           color:"var(--primary)",   bg:"var(--purple-muted)"   },
-              { label:"Manage Exams",       href:"/admin/exams",        icon:BookOpen,      color:"var(--success)",  bg:"var(--success-muted)"  },
-              { label:"View Classes",       href:"/admin/classes",      icon:Building2,     color:"var(--warning)",  bg:"var(--warning-muted)"  },
-              { label:"Generate Reports",   href:"/admin/reports",      icon:Activity,      color:"var(--danger)",   bg:"var(--danger-muted)"   },
-              { label:"System Settings",    href:"/admin/settings",     icon:Shield,        color:"var(--text-secondary)", bg:"var(--bg-deep)"   },
-            ].map(({ label, href, icon:Icon, color, bg }) => (
-              <a key={href} href={href}>
-                <motion.div whileHover={{ x:3 }}
-                  className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all"
-                  style={{ background:"var(--bg-deep)", border:"1px solid var(--border)" }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = color}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}>
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                       style={{ background:bg }}>
-                    <Icon size={13} style={{ color }}/>
-                  </div>
-                  <span className="text-sm font-medium" style={{ color:"var(--text-secondary)" }}>{label}</span>
-                  <ChevronRight size={12} className="ml-auto" style={{ color:"var(--text-muted)" }}/>
-                </motion.div>
-              </a>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    </AdminLayout>
+    </AppShell>
   );
 }

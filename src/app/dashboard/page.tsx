@@ -1,238 +1,257 @@
 "use client";
-import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import ExamControlPanel from "@/components/ExamControlPanel";
-import StatsCard from "@/components/StatsCard";
-import { Users, UserCheck, WifiOff, UserMinus, Monitor, CheckCircle, Search, AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AppShell, PageHeader } from "@/components/layouts";
+import { Badge, Button, Modal, ModalFooter, StatCard } from "@/components/ui";
+import { Avatar } from "@/components/ui/Avatar";
+import { motion } from "framer-motion";
+import { AVAILABLE_CLASSES_LIST, MOCK_SESSIONS } from "@/mock/invigilators";
+import { AVAILABLE_EXAMS_LIST } from "@/mock/exams";
+import { useAuthStore } from "@/store/authStore";
+import { ANIMATION_VARIANTS, CHART_COLORS } from "@/constants";
+import { AreaChart } from "@/components/features/charts";
+import { VIOLATION_TREND_DATA } from "@/mock/exams";
+import {
+  Play, BookOpen, Users, ClipboardList, Activity,
+  CheckCircle2, Clock, Calendar, ChevronRight,
+  AlertTriangle, MonitorPlay, Key,
+} from "lucide-react";
 
-export default function DashboardPage() {
-  const [examId] = useState("EX001");
-  const [classId] = useState("CSE-3A");
-  const [examName] = useState("DBMS Final Exam");
-  const [examStatus, setExamStatus] = useState("NOT_STARTED");
-  const [summary, setSummary] = useState<any>(null);
-  const [students, setStudents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
+const RISK_TREND = [
+  { name: "10:00", value: 12 }, { name: "10:15", value: 18 },
+  { name: "10:30", value: 35 }, { name: "10:45", value: 42 },
+  { name: "11:00", value: 38 }, { name: "11:15", value: 52 },
+  { name: "11:30", value: 44 },
+];
 
-  const fetchStatus = async () => {
-    setLoading(true);
-    try {
-      const sumRes = await fetch(`http://127.0.0.1:8000/api/exam/dashboard-summary/${examId}`);
-      if (sumRes.ok) {
-        const sumData = await sumRes.json();
-        setSummary(sumData);
-      }
+/* ── Session launcher modal ── */
+function SessionLaunchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedExam,  setSelectedExam]  = useState("");
+  const [passcode,      setPasscode]      = useState("");
 
-      const stuRes = await fetch(`http://127.0.0.1:8000/api/exam/students/${examId}`);
-      if (stuRes.ok) {
-        const stuData = await stuRes.json();
-        setStudents(stuData);
-        // If we have students, derive exam status from any IN_EXAM or just assume if we have joined students it's started
-        // Ideally we'd have a GET /api/exam/status endpoint, but we can infer or hardcode for demo.
-        if (stuData.some((s:any) => s.status === 'WAITING_START' || s.status === 'IN_EXAM')) {
-           setExamStatus("STARTED");
-        } else if (stuData.every((s:any) => s.status === 'QUIT_APPROVED' || s.status === 'COMPLETED') && stuData.length > 0) {
-           setExamStatus("ALL_RELEASED");
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleStartExam = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("http://127.0.0.1:8000/api/exam/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          exam_id: examId,
-          exam_name: examName,
-          class_id: classId,
-          created_by: "invigilator-001",
-          created_by_role: "invigilator"
-        })
-      });
-      if (res.ok) {
-        setExamStatus("STARTED");
-        setMessage({ text: "Exam started successfully. Students will receive confirmation popup.", type: "success" });
-        fetchStatus();
-      }
-    } catch (e) {
-      setMessage({ text: "Failed to start exam.", type: "error" });
-    }
-    setLoading(false);
-    setTimeout(() => setMessage(null), 5000);
-  };
-
-  const handleQuitAll = async () => {
-    if (!confirm("Are you sure you want to release all students from this exam?")) return;
-    setLoading(true);
-    try {
-      const res = await fetch("http://127.0.0.1:8000/api/exam/quit-all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          exam_id: examId,
-          approved_by: "invigilator-001",
-          approved_by_role: "invigilator"
-        })
-      });
-      if (res.ok) {
-        setExamStatus("ALL_RELEASED");
-        setMessage({ text: "All students have been released.", type: "success" });
-        fetchStatus();
-      }
-    } catch (e) {
-      setMessage({ text: "Failed to quit all students.", type: "error" });
-    }
-    setLoading(false);
-    setTimeout(() => setMessage(null), 5000);
-  };
-
-  const handleQuitStudent = async (rollNumber: string) => {
-    if (!confirm(`Are you sure you want to quit exam for ${rollNumber}?`)) return;
-    try {
-      const res = await fetch("http://127.0.0.1:8000/api/exam/quit-student", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          exam_id: examId,
-          roll_number: rollNumber,
-          approved_by: "invigilator-001",
-          approved_by_role: "invigilator"
-        })
-      });
-      if (res.ok) {
-        setMessage({ text: `Student ${rollNumber} has been quit from the exam.`, type: "success" });
-        fetchStatus();
-      }
-    } catch (e) {
-      setMessage({ text: "Failed to quit student.", type: "error" });
-    }
-    setTimeout(() => setMessage(null), 5000);
-  };
-
-  const filteredStudents = students.filter(s => 
-    s.roll_number.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (s.student_name && s.student_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const eligibleExams = AVAILABLE_EXAMS_LIST.filter(
+    (e) => !selectedClass || e.eligibleClasses.includes(selectedClass)
   );
 
-  return (
-    <DashboardLayout title="Teacher Dashboard" subtitle="Control and Monitor Examination">
-      <div className="max-w-6xl mx-auto space-y-6">
-        
-        <AnimatePresence>
-          {message && (
-            <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
-              className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${
-                message.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"
-              }`}>
-              {message.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-              {message.text}
-            </motion.div>
-          )}
-        </AnimatePresence>
+  const handleStart = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("invSelectedClass", JSON.stringify(AVAILABLE_CLASSES_LIST.find((c) => c.id === selectedClass)));
+      sessionStorage.setItem("invSelectedExam",  JSON.stringify(AVAILABLE_EXAMS_LIST.find((e) => e.id === selectedExam)));
+    }
+    onClose();
+    router.push("/monitoring");
+  };
 
-        <ExamControlPanel 
-          examId={examId} classId={classId} examName={examName} status={examStatus}
-          onStartExam={handleStartExam} onQuitAll={handleQuitAll} onRefresh={fetchStatus} isLoading={loading}
+  return (
+    <Modal open={open} onClose={onClose} title="Start Monitoring Session" size="md">
+      {/* Steps */}
+      <div className="flex items-center gap-2 mb-6">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className="flex items-center gap-2 flex-1">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+              s <= step ? "bg-primary text-white" : "bg-surface-2 text-text-muted border border-white/8"
+            }`}>
+              {s < step ? "✓" : s}
+            </div>
+            {s < 3 && <div className="flex-1 h-px bg-white/8" />}
+          </div>
+        ))}
+      </div>
+
+      {step === 1 && (
+        <div className="space-y-3">
+          <p className="text-[13px] text-text-muted mb-3">Select the class you are invigilating</p>
+          {AVAILABLE_CLASSES_LIST.map((cls) => (
+            <button
+              key={cls.id}
+              onClick={() => setSelectedClass(cls.id)}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${
+                selectedClass === cls.id
+                  ? "border-primary/40 bg-primary/8"
+                  : "border-white/6 bg-surface-2/40 hover:border-white/12"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-cyan/10 flex items-center justify-center">
+                  <BookOpen className="w-3.5 h-3.5 text-cyan" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-medium text-text-primary">{cls.label}</p>
+                  <p className="text-[11.5px] text-text-muted">{cls.dept} · Room {cls.roomNo}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11.5px] text-text-muted">{cls.strength} students</span>
+                {selectedClass === cls.id && <CheckCircle2 className="w-4 h-4 text-primary" />}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-3">
+          <p className="text-[13px] text-text-muted mb-3">Select the exam to monitor</p>
+          {eligibleExams.map((exam) => (
+            <button
+              key={exam.id}
+              onClick={() => setSelectedExam(exam.id)}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${
+                selectedExam === exam.id
+                  ? "border-primary/40 bg-primary/8"
+                  : "border-white/6 bg-surface-2/40 hover:border-white/12"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <ClipboardList className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-medium text-text-primary">{exam.title}</p>
+                  <p className="text-[11.5px] text-text-muted">{exam.code} · {exam.date} · {exam.startTime}</p>
+                </div>
+              </div>
+              {selectedExam === exam.id && <CheckCircle2 className="w-4 h-4 text-primary" />}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-surface-2/50 space-y-2">
+            <p className="text-[12px] text-text-muted uppercase tracking-wide">Session Summary</p>
+            <p className="text-[13.5px] font-medium text-text-primary">
+              {AVAILABLE_CLASSES_LIST.find((c) => c.id === selectedClass)?.label}
+            </p>
+            <p className="text-[13px] text-text-secondary">
+              {AVAILABLE_EXAMS_LIST.find((e) => e.id === selectedExam)?.title}
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[12.5px] font-medium text-text-secondary flex items-center gap-1.5">
+              <Key className="w-3.5 h-3.5" /> Exam Passcode
+            </label>
+            <input
+              value={passcode} onChange={(e) => setPasscode(e.target.value.toUpperCase())}
+              placeholder="Enter passcode (e.g. DB2026)"
+              className="input-premium w-full font-mono tracking-widest"
+            />
+            <p className="text-[11.5px] text-text-muted">Students will use this code to access the exam</p>
+          </div>
+        </div>
+      )}
+
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        {step > 1 && <Button variant="secondary" onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}>Back</Button>}
+        {step < 3
+          ? <Button variant="primary" disabled={step === 1 ? !selectedClass : !selectedExam} onClick={() => setStep((s) => (s + 1) as 2 | 3)}>
+              Continue <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          : <Button variant="success" icon={<Play className="w-3.5 h-3.5" />} onClick={handleStart}>
+              Start Session
+            </Button>
+        }
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+export default function InvigilatorDashboardPage() {
+  const { userName, userDept } = useAuthStore();
+  const [launchOpen, setLaunchOpen] = useState(false);
+
+  const mySessions = MOCK_SESSIONS.slice(0, 3);
+  const activeCount = mySessions.filter((s) => s.status === "active").length;
+
+  return (
+    <AppShell variant="invigilator">
+      <div className="p-6 space-y-6">
+        <PageHeader
+          title={`Welcome back, ${userName?.split(" ")[0] ?? "Invigilator"}`}
+          description={`${userDept ?? "—"} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}`}
+          badge={activeCount > 0 ? <Badge variant="success" dot>{activeCount} Active</Badge> : undefined}
+          actions={
+            <Button variant="primary" icon={<Play className="w-3.5 h-3.5" />} onClick={() => setLaunchOpen(true)}>
+              Start Session
+            </Button>
+          }
         />
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatsCard title="Total Students" value={summary?.total_students || 0} icon={Users} color="blue" index={0} />
-          <StatsCard title="Joined" value={summary?.joined_students || 0} icon={UserCheck} color="green" index={1} />
-          <StatsCard title="Network Issue" value={summary?.network_issue_students || 0} icon={WifiOff} color="yellow" index={2} />
-          <StatsCard title="Absent" value={summary?.absent_students || 0} icon={UserMinus} color="red" index={3} />
-          <StatsCard title="In Exam" value={summary?.in_exam_students || 0} icon={Monitor} color="indigo" index={4} />
-          <StatsCard title="Completed/Quit" value={summary?.completed_students || 0} icon={CheckCircle} color="teal" index={5} />
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard index={0} label="Sessions Today"  value={mySessions.length}  icon={<Activity      className="w-4 h-4" />} color="primary"  />
+          <StatCard index={1} label="Students Online" value={48}                 icon={<Users         className="w-4 h-4" />} color="success"  delta="Across all sessions" deltaType="up" />
+          <StatCard index={2} label="Violations"      value={18}                 icon={<AlertTriangle className="w-4 h-4" />} color="danger"   />
+          <StatCard index={3} label="Exams Assigned"  value={5}                  icon={<ClipboardList className="w-4 h-4" />} color="cyan"     />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mt-8">
-          <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="font-bold text-gray-800 text-lg">Student Management</h3>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search by roll number..." 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
-              />
+        <div className="grid grid-cols-3 gap-4">
+          {/* Active sessions */}
+          <div className="col-span-2 card p-5">
+            <div className="section-header">
+              <div>
+                <p className="section-title">My Sessions</p>
+                <p className="section-subtitle">{"Today's"} assigned exam sessions</p>
+              </div>
+              <Button variant="primary" size="sm" icon={<Play className="w-3.5 h-3.5" />} onClick={() => setLaunchOpen(true)}>
+                New Session
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {mySessions.map((session) => (
+                <div key={session.id} className="flex items-center gap-4 p-4 rounded-xl bg-surface-2/50 border border-white/5 hover:border-primary/20 transition-all">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    session.status === "active" ? "bg-success/10" : session.status === "paused" ? "bg-warning/10" : "bg-surface-3"
+                  }`}>
+                    <MonitorPlay className={`w-4 h-4 ${session.status === "active" ? "text-success" : session.status === "paused" ? "text-warning" : "text-text-muted"}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13.5px] font-medium text-text-primary truncate">{session.exam}</p>
+                    <p className="text-[12px] text-text-muted">{session.class} · {session.students} students · {session.startTime}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <p className="text-[11.5px] text-danger font-medium">{session.violations} violations</p>
+                      <p className="text-[11px] text-text-muted">avg risk {session.avgRisk}%</p>
+                    </div>
+                    <Badge variant={session.status === "active" ? "success" : session.status === "paused" ? "warning" : "muted"} dot>
+                      {session.status}
+                    </Badge>
+                    <Button variant="secondary" size="sm" onClick={() => {}}>Monitor</Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-50/50 text-gray-500 font-medium">
-                <tr>
-                  <th className="px-6 py-4">Roll Number</th>
-                  <th className="px-6 py-4">Student Name</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Network Status</th>
-                  <th className="px-6 py-4">Joined Time</th>
-                  <th className="px-6 py-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {filteredStudents.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No students found.</td></tr>
-                ) : (
-                  filteredStudents.map((s, i) => (
-                    <motion.tr 
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                      key={s.roll_number} className="hover:bg-gray-50/50 transition-colors"
-                    >
-                      <td className="px-6 py-4 font-semibold text-gray-900">{s.roll_number}</td>
-                      <td className="px-6 py-4">{s.student_name || "N/A"}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide
-                          ${s.status === 'IN_EXAM' ? 'bg-indigo-100 text-indigo-700' :
-                            s.status === 'ABSENT' ? 'bg-red-100 text-red-700' :
-                            s.status === 'COMPLETED' || s.status === 'QUIT_APPROVED' ? 'bg-teal-100 text-teal-700' :
-                            'bg-gray-100 text-gray-700'}`}>
-                          {s.status.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                         <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide
-                          ${s.network_status === 'ONLINE' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                          {s.network_status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-[12px] text-gray-500">
-                        {s.joined_at ? new Date(s.joined_at).toLocaleTimeString() : "-"}
-                      </td>
-                      <td className="px-6 py-4">
-                        <button 
-                          onClick={() => handleQuitStudent(s.roll_number)}
-                          disabled={s.status === 'ABSENT' || s.status === 'COMPLETED' || s.status === 'QUIT_APPROVED'}
-                          className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
-                        >
-                          Quit Exam
-                        </button>
-                      </td>
-                    </motion.tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+
+          {/* Risk chart */}
+          <div className="card p-5">
+            <p className="section-title mb-1">Risk Trend</p>
+            <p className="section-subtitle mb-4">Average risk score over session</p>
+            <AreaChart data={RISK_TREND} color={CHART_COLORS.warning} height={160} showGrid={false} />
+
+            <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
+              <p className="text-[12px] text-text-muted uppercase tracking-wide font-medium">Upcoming Exams</p>
+              {AVAILABLE_EXAMS_LIST.slice(0, 3).map((exam) => (
+                <div key={exam.id} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-[12px] font-medium text-text-primary truncate max-w-[140px]">{exam.title}</p>
+                    <p className="text-[10.5px] text-text-muted">{exam.date} · {exam.startTime}</p>
+                  </div>
+                  <Badge variant={exam.status === "active" ? "success" : "primary"} size="sm">{exam.status}</Badge>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        
       </div>
-    </DashboardLayout>
+
+      <SessionLaunchModal open={launchOpen} onClose={() => setLaunchOpen(false)} />
+    </AppShell>
   );
 }

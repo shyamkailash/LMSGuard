@@ -15,10 +15,10 @@ export function getAdminByEmail(email: string): AdminAccount {
 
 // ─── Departments ─────────────────────────────────────────────────────────────
 export const DEPARTMENTS : Department[] = [
-  { id:"DEPT01", name:"Computer Science",  code:"CS",  hod:"Dr. Ramesh Kumar", students:120, classes:2 },
-  { id:"DEPT02", name:"Electronics",       code:"EC",  hod:"Dr. Priya Nair",   students:80,  classes:1 },
-  { id:"DEPT03", name:"Information Tech",  code:"IT",  hod:"Dr. Suresh Babu",  students:60,  classes:1 },
-  { id:"DEPT04", name:"Mechanical Engg",   code:"ME",  hod:"Dr. Arun Menon",   students:90,  classes:2 },
+  { id:"DEPT01", name:"Computer Science",  code:"CS",  hod:"Dr. Ramesh Kumar", students:120, classes:2, status:"active" },
+  { id:"DEPT02", name:"Electronics",       code:"EC",  hod:"Dr. Priya Nair",   students:80,  classes:1, status:"active" },
+  { id:"DEPT03", name:"Information Tech",  code:"IT",  hod:"Dr. Suresh Babu",  students:60,  classes:1, status:"active" },
+  { id:"DEPT04", name:"Mechanical Engg",   code:"ME",  hod:"Dr. Arun Menon",   students:90,  classes:2, status:"active" },
 ];
 
 // ─── All Classes ─────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ export const ALL_EXAMS : AdminExam[] = [
   { id:"EX003", title:"Data Structures Test",   subject:"DS & Algorithms",        code:"CS301", date:"01-07-2026", dept:"Computer Science", classes:["CSE-3A","IT-2A"],  duration:60, questions:40, status:"scheduled"},
   { id:"EX004", title:"Digital Circuits Exam",  subject:"Digital Electronics",    code:"EC401", date:"30-06-2026", dept:"Electronics",      classes:["ECE-3A"],          duration:60, questions:50, status:"active"   },
   { id:"EX005", title:"Web Technologies Test",  subject:"Web Development",        code:"IT301", date:"01-07-2026", dept:"Information Tech", classes:["IT-2A","CSE-3B"],  duration:45, questions:30, status:"scheduled"},
-  { id:"EX006", name:"Networks Mid Term",       subject:"Computer Networks",      code:"CS502", date:"02-07-2026", dept:"Computer Science", classes:["CSE-3A"],          duration:30, questions:20, status:"scheduled"},
+  { id:"EX006", title:"Networks Mid Term",       subject:"Computer Networks",      code:"CS502", date:"02-07-2026", dept:"Computer Science", classes:["CSE-3A"],          duration:30, questions:20, status:"scheduled"},
 ];
 
 // ─── System-wide violations ───────────────────────────────────────────────────

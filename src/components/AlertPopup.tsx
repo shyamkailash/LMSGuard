@@ -2,13 +2,16 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, Eye, Minus, MessageSquare, Zap } from "lucide-react";
-import type { WSViolationEvent, Severity } from "@/types";
+import type { WSViolationEvent } from "@/types";
+
+type LocalSeverity = "critical" | "high" | "medium" | "low";
 
 interface SevConfig { bar:string; soft:string; border:string; text:string; label:string; }
-const SEV: Record<Severity, SevConfig> = {
-  critical:{ bar:"#EF4444", soft:"#FFF1F2", border:"rgba(239,68,68,0.2)",  text:"#DC2626", label:"CRITICAL" },
-  warning: { bar:"#F59E0B", soft:"#FFFBEB", border:"rgba(245,158,11,0.2)", text:"#D97706", label:"WARNING"  },
-  medium:  { bar:"#F59E0B", soft:"#FFFBEB", border:"rgba(245,158,11,0.15)",text:"#D97706", label:"MEDIUM"   },
+const SEV: Record<LocalSeverity, SevConfig> = {
+  critical:{ bar:"#EF4444", soft:"rgba(239,68,68,0.1)",  border:"rgba(239,68,68,0.2)",  text:"#DC2626", label:"CRITICAL" },
+  high:    { bar:"#F97316", soft:"rgba(249,115,22,0.1)",  border:"rgba(249,115,22,0.2)", text:"#EA580C", label:"HIGH"     },
+  medium:  { bar:"#F59E0B", soft:"rgba(245,158,11,0.1)", border:"rgba(245,158,11,0.2)", text:"#D97706", label:"MEDIUM"   },
+  low:     { bar:"#6B7280", soft:"rgba(107,114,128,0.1)",border:"rgba(107,114,128,0.2)",text:"#4B5563", label:"LOW"      },
 };
 
 interface AlertPopupProps {
@@ -31,7 +34,7 @@ export default function AlertPopup({ alert, onClose, onViewStudent, onIgnore, on
   }, [alert]);
 
   const close = (): void => { setShow(false); setTimeout(() => onClose?.(), 300); };
-  const c = alert ? (SEV[alert.severity] ?? SEV.medium) : SEV.medium;
+  const c = alert ? (SEV[alert.severity as LocalSeverity] ?? SEV.medium) : SEV.medium;
 
   return (
     <AnimatePresence>

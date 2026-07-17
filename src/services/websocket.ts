@@ -6,12 +6,12 @@ import type { MonitoringStudent, ViolationRecord, NetworkIssue, WSEventMap } fro
 const LIVE_EVENT_POOL = [
   { type:"Browser Switch",      detail:"Chrome tab changed",        severity:"medium"   as const },
   { type:"Application Switch",  detail:"VS Code opened",            severity:"critical" as const },
-  { type:"Idle Detected",       detail:"No activity for 5 mins",    severity:"warning"  as const },
+  { type:"Idle Detected",       detail:"No activity for 5 mins",    severity:"medium"   as const },
   { type:"Multiple Faces",      detail:"Secondary person detected", severity:"critical" as const },
   { type:"Copy/Paste",          detail:"Clipboard activity",        severity:"medium"   as const },
   { type:"Unknown App",         detail:"Terminal opened",           severity:"critical" as const },
   { type:"Screen Capture",      detail:"Screenshot attempt",        severity:"critical" as const },
-  { type:"Audio Detected",      detail:"Microphone activity",       severity:"warning"  as const },
+  { type:"Audio Detected",      detail:"Microphone activity",       severity:"low"      as const },
 ];
 
 const NETWORK_POOL = [
@@ -49,8 +49,8 @@ function startMock(assignedClass: string): void {
   if (typeof window === "undefined") return;
 
   import("@/data/invigilatorData").then(({ CLASS_STUDENTS, CLASS_VIOLATIONS }) => {
-    const students   = (CLASS_STUDENTS   as Record<string, MonitoringStudent[]>)[activeClass]   || [];
-    const violations = (CLASS_VIOLATIONS as Record<string, ViolationRecord[]>)[activeClass]     || [];
+    const students   = (CLASS_STUDENTS   as unknown as Record<string, MonitoringStudent[]>)[activeClass]   || [];
+    const violations = (CLASS_VIOLATIONS as unknown as Record<string, ViolationRecord[]>)[activeClass]     || [];
 
     setTimeout(() => {
       emit("student_status",  { students, assignedClass: activeClass });

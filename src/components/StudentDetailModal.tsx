@@ -27,10 +27,12 @@ export default function StudentDetailModal({
     { time:"10:40", type:"Unknown Application", severity:"critical" },
   ];
 
-  const SEV = {
+  const SEV: Record<string, string> = {
     critical: "badge-danger",
+    high:     "badge-danger",
     warning:  "badge-warning",
     medium:   "badge-warning",
+    low:      "badge-muted",
     safe:     "badge-success",
   };
 

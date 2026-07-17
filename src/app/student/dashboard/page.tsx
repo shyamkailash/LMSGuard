@@ -1,168 +1,177 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { GraduationCap, Loader2, AlertTriangle } from "lucide-react";
-import DashboardLayout from "@/components/DashboardLayout";
+import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
+import { useAuthStore } from "@/store/authStore";
+import { MOCK_ASSESSMENTS } from "@/data/studentData";
+import { ANIMATION_VARIANTS } from "@/constants";
+import { Shield, Clock, BookOpen, CheckCircle2, AlertTriangle, Calendar, ChevronRight, Lock, Play, GraduationCap, LogOut } from "lucide-react";
 
-export default function StudentDashboard() {
+function ExamCard({ exam, onSelect }: { exam: typeof MOCK_ASSESSMENTS[0]; onSelect: () => void }) {
+  const isAvailable = exam.status === "available";
+  const isUpcoming  = exam.status === "upcoming";
+  const isCompleted = exam.status === "completed";
+
+  return (
+    <motion.div
+      variants={ANIMATION_VARIANTS.fadeUp}
+      className={`card p-5 cursor-pointer transition-all ${isAvailable ? "hover:border-primary/30" : "opacity-70"}`}
+      onClick={isAvailable ? onSelect : undefined}
+    >
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            isAvailable ? "bg-primary/10" : isCompleted ? "bg-success/10" : "bg-surface-2"
+          }`}>
+            {isAvailable  ? <Play         className="w-4 h-4 text-primary" /> :
+             isCompleted  ? <CheckCircle2 className="w-4 h-4 text-success" /> :
+                             <Lock        className="w-4 h-4 text-text-muted" />}
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-text-primary">{exam.title}</p>
+            <p className="text-[12px] text-text-muted">{exam.code} · {exam.subject}</p>
+          </div>
+        </div>
+        <Badge
+          variant={isAvailable ? "success" : isCompleted ? "muted" : "primary"}
+          dot
+        >
+          {exam.status}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {[
+          { icon: <Clock     className="w-3 h-3" />, label: `${exam.duration} min`    },
+          { icon: <BookOpen  className="w-3 h-3" />, label: `${exam.totalQuestions} Qs` },
+          { icon: <Calendar  className="w-3 h-3" />, label: exam.date                 },
+        ].map((item, i) => (
+          <div key={i} className="flex items-center gap-1.5 text-[11.5px] text-text-muted">
+            {item.icon}{item.label}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] text-text-muted">
+          {exam.startTime} – {exam.endTime}
+        </span>
+        {isAvailable && (
+          <button className="flex items-center gap-1.5 text-[12.5px] font-medium text-primary hover:text-blue-400 transition-colors">
+            Start Exam <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+export default function StudentDashboardPage() {
+  const { userName, userEmail, userAvatar, userDept, logout } = useAuthStore();
   const router = useRouter();
-  const [studentId, setStudentId] = useState("");
-  const [rollNumber, setRollNumber] = useState("");
-  const [studentName, setStudentName] = useState("");
-  const examId = "EX001";
-  const classId = "CSE-3A";
-  
-  const [statusMsg, setStatusMsg] = useState("Connecting to exam lobby...");
-  const [showPopup, setShowPopup] = useState(false);
-  const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => {
-    const sId = sessionStorage.getItem("student_id") || "student-001";
-    const rNo = sessionStorage.getItem("roll_number") || "21AI001";
-    const sName = sessionStorage.getItem("full_name") || "Test Student";
-    setStudentId(sId);
-    setRollNumber(rNo);
-    setStudentName(sName);
+  const available = MOCK_ASSESSMENTS.filter((a) => a.status === "available");
+  const upcoming  = MOCK_ASSESSMENTS.filter((a) => a.status === "upcoming");
 
-    // 1. Join Lobby
-    fetch("http://127.0.0.1:8000/api/student/exam/join", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ student_id: sId, roll_number: rNo, student_name: sName, exam_id: examId, class_id: classId })
-    }).then(res => {
-        if(res.ok) {
-            setStatusMsg("Waiting for invigilator to start the exam...");
-        }
-    }).catch(e => setStatusMsg("Failed to connect to lobby. Retrying..."));
-
-    // 2. Poll Status every 5 seconds
-    const pollInterval = setInterval(() => {
-      fetch(`http://127.0.0.1:8000/api/student/exam/status/${examId}/${rNo}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.redirect_to_completed) {
-            router.push("/student/exam/completed");
-          } else if (data.student_status === "IN_EXAM") {
-            router.push("/student/exam");
-          } else if (data.show_start_popup) {
-            setShowPopup(true);
-            setStatusMsg("Exam has been started by your invigilator.");
-          } else if (data.message) {
-            setStatusMsg(data.message);
-          }
-        })
-        .catch(console.error);
-    }, 5000);
-
-    // 3. Heartbeat every 10 seconds
-    const heartbeatInterval = setInterval(() => {
-      fetch("http://127.0.0.1:8000/api/student/exam/heartbeat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ student_id: sId, roll_number: rNo, exam_id: examId })
-      }).catch(console.error);
-    }, 10000);
-
-    return () => {
-      clearInterval(pollInterval);
-      clearInterval(heartbeatInterval);
-    };
-  }, [router]);
-
-  const handleConfirmStart = async () => {
-    setConfirming(true);
-    try {
-      const res = await fetch("http://127.0.0.1:8000/api/student/exam/confirm-start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ student_id: studentId, roll_number: rollNumber, exam_id: examId })
-      });
-      if (res.ok) {
-        router.push("/student/exam");
-      } else {
-        setConfirming(false);
-      }
-    } catch (e) {
-      console.error(e);
-      setConfirming(false);
-    }
+  const handleExamSelect = (examId: string) => {
+    router.push(`/student/exam?id=${examId}`);
   };
 
   return (
-    <DashboardLayout title="Student Dashboard" subtitle="Exam Lobby">
-      <div className="max-w-2xl mx-auto mt-10">
-        
-        <div className="bg-white rounded-3xl p-10 shadow-lg border border-gray-100 text-center relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-blue-50 to-transparent pointer-events-none" />
-          
-          <div className="relative z-10 flex flex-col items-center">
-            <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-sm">
-              <GraduationCap size={40} />
+    <div className="min-h-screen bg-background mesh-bg">
+      {/* Header */}
+      <header className="border-b border-white/5 bg-surface/60 backdrop-blur-xl sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Shield className="w-4 h-4 text-white" />
             </div>
-            
-            <h2 className="text-2xl font-extrabold text-gray-900 mb-2">
-              Welcome, {studentName || rollNumber}
-            </h2>
-            
-            <p className="text-gray-500 mb-8 max-w-md">
-              You are in the exam lobby. Please wait here until the invigilator starts the session. Do not close this tab.
-            </p>
+            <span className="text-[14px] font-bold text-text-primary">LMSGuard</span>
+            <span className="badge badge-success text-[10px]">Student Portal</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              <Avatar name={userName ?? "S"} size="sm" />
+              <div className="hidden sm:block">
+                <p className="text-[12.5px] font-semibold text-text-primary leading-tight">{userName}</p>
+                <p className="text-[11px] text-text-muted leading-tight">{userDept}</p>
+              </div>
+            </div>
+            <button onClick={() => { logout(); router.push("/student/login"); }}
+              className="icon-btn text-text-muted hover:text-danger hover:bg-danger/10">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </header>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 w-full max-w-sm flex items-center justify-center gap-3">
-              <Loader2 className="animate-spin text-blue-500" size={20} />
-              <span className="font-semibold text-gray-700">{statusMsg}</span>
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        {/* Welcome */}
+        <motion.div variants={ANIMATION_VARIANTS.fadeUp} initial="hidden" animate="visible">
+          <h1 className="text-[22px] font-bold text-text-primary tracking-tight">
+            Welcome back, {userName?.split(" ")[0]}
+          </h1>
+          <p className="text-[13.5px] text-text-muted mt-1">
+            {userDept} · 22CS101 · {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+        </motion.div>
+
+        {/* Stats strip */}
+        <div className="grid grid-cols-4 gap-4">
+          {[
+            { label: "Exams Available",  value: available.length, color: "text-success", bg: "bg-success/8  border-success/15"  },
+            { label: "Upcoming",         value: upcoming.length,  color: "text-primary", bg: "bg-primary/8  border-primary/15"  },
+            { label: "Completed",        value: 2,                color: "text-text-muted", bg: "bg-surface-2 border-white/6"   },
+            { label: "Avg Score",        value: "84%",            color: "text-cyan",    bg: "bg-cyan/8     border-cyan/15"     },
+          ].map((s, i) => (
+            <div key={i} className={`flex flex-col gap-1 px-4 py-3.5 rounded-xl border ${s.bg}`}>
+              <span className={`text-[24px] font-bold font-feature ${s.color}`}>{s.value}</span>
+              <span className="text-[12px] text-text-muted">{s.label}</span>
             </div>
+          ))}
+        </div>
+
+        {/* Instructions banner */}
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/8 border border-primary/20">
+          <AlertTriangle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+          <div className="text-[13px] text-text-secondary space-y-1">
+            <p className="font-semibold text-text-primary">Before you begin</p>
+            <p>Ensure you are in a quiet, well-lit space. Close all other applications. The exam browser will lock your screen during the exam. Any violation will be recorded and reported.</p>
           </div>
         </div>
 
-      </div>
-
-      {/* Start Exam Confirmation Popup */}
-      <AnimatePresence>
-        {showPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }} 
-              className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative overflow-hidden"
+        {/* Available exams */}
+        {available.length > 0 && (
+          <div>
+            <p className="section-title mb-4">Available Exams</p>
+            <motion.div
+              variants={ANIMATION_VARIANTS.stagger} initial="hidden" animate="visible"
+              className="grid grid-cols-2 gap-4"
             >
-              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-cyan-400" />
-              
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Exam Started</h3>
-                  <p className="text-sm text-gray-500">Action Required</p>
-                </div>
-              </div>
-              
-              <p className="text-gray-700 mb-8 leading-relaxed">
-                Your invigilator has started the exam. Click confirm to enter the coding exam securely.
-              </p>
-              
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setShowPopup(false)}
-                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleConfirmStart}
-                  disabled={confirming}
-                  className="flex-1 px-4 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors disabled:opacity-70 flex justify-center items-center"
-                >
-                  {confirming ? <Loader2 size={18} className="animate-spin" /> : "Confirm and Enter Exam"}
-                </button>
-              </div>
+              {available.map((exam) => (
+                <ExamCard key={exam.id} exam={exam} onSelect={() => handleExamSelect(exam.id)} />
+              ))}
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
 
-    </DashboardLayout>
+        {/* Upcoming exams */}
+        {upcoming.length > 0 && (
+          <div>
+            <p className="section-title mb-4">Upcoming Exams</p>
+            <motion.div
+              variants={ANIMATION_VARIANTS.stagger} initial="hidden" animate="visible"
+              className="grid grid-cols-2 gap-4"
+            >
+              {upcoming.map((exam) => (
+                <ExamCard key={exam.id} exam={exam} onSelect={() => {}} />
+              ))}
+            </motion.div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -1,224 +1,152 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Shield, Mail, Lock, AlertCircle } from "lucide-react";
-import Link from "next/link";
+import { motion } from "framer-motion";
+import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, UserCog } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import { INVIGILATOR_PROFILES } from "@/mock/invigilators";
+import { cn } from "@/lib/utils";
 
-type Role = "admin" | "student" | "invigilator";
+const DEMO_ACCOUNTS = [
+  { email: "john.martin@ssiet.ac.in",  label: "John Martin (CSE)"  },
+  { email: "sarah.thomas@ssiet.ac.in", label: "Sarah Thomas (CSE)" },
+  { email: "ravi.sharma@ssiet.ac.in",  label: "Ravi Sharma (ECE)"  },
+];
 
-export default function LoginPage() {
+export default function InvigilatorLoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<Role>("admin");
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const login  = useAuthStore((s) => s.login);
 
-  const roleConfig = {
-    admin: {
-      label: "Admin email or Admin ID",
-      buttonText: "Login to Admin",
-      subtitle: "Login with your Admin email to open the Admin dashboard.",
-      placeholder: "admin@lmsguard.edu",
-      redirect: "/admin/dashboard",
-      demoName: "Admin User",
-    },
-    student: {
-      label: "Roll Number",
-      buttonText: "Login to Student",
-      subtitle: "Login with your Roll Number to enter the student portal.",
-      placeholder: "e.g., 21AI001",
-      redirect: "/student/dashboard",
-      demoName: "Student User",
-    },
-    invigilator: {
-      label: "College Mail ID",
-      buttonText: "Login to Invigilator",
-      subtitle: "Login with your College Mail ID to monitor your class.",
-      placeholder: "teacher@college.edu",
-      redirect: "/dashboard",
-      demoName: "Invigilator User",
-    }
-  };
+  const [email,    setEmail]    = useState("john.martin@ssiet.ac.in");
+  const [password, setPassword] = useState("inv123");
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
 
-  const currentConfig = roleConfig[role];
-
-  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier || !password) {
-      setError("Please fill in all fields.");
+    setError("");
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 900));
+
+    const profile = INVIGILATOR_PROFILES.find(
+      (p) => p.email.toLowerCase() === email.toLowerCase()
+    );
+
+    if (!profile || password !== "inv123") {
+      setError("Invalid credentials. Use any invigilator email with password: inv123");
+      setLoading(false);
       return;
     }
-    
-    setError(""); 
-    setLoading(true);
-    
-    // TODO: Replace demo login with database-backed authentication.
-    // e.g. POST /api/auth/login
-    await new Promise(r => setTimeout(r, 1000));
-    
-    // Simulate successful login
-    sessionStorage.setItem("isAuthenticated", "true");
-    sessionStorage.setItem("role", role);
-    sessionStorage.setItem("user_id", identifier);
-    sessionStorage.setItem("identifier", identifier);
-    sessionStorage.setItem("full_name", currentConfig.demoName);
-    
-    if (role === "student") {
-        sessionStorage.setItem("roll_number", identifier);
-        sessionStorage.setItem("student_id", identifier);
-    }
-    
-    router.push(currentConfig.redirect);
-  }
+
+    login({
+      role:       "invigilator",
+      userId:     profile.id,
+      userName:   profile.name,
+      userEmail:  profile.email,
+      userAvatar: profile.avatar,
+      userDept:   profile.department,
+    });
+    router.push("/dashboard");
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative" style={{ background: "linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)" }}>
-      
-      {/* Decorative background blobs */}
-      <div className="absolute top-0 left-0 right-0 h-80 pointer-events-none" style={{ background:"linear-gradient(180deg,rgba(255,255,255,0.8) 0%,transparent 100%)" }}/>
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background:"#93C5FD" }}/>
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background:"#A7F3D0" }}/>
+    <div className="min-h-screen bg-background mesh-bg flex items-center justify-center px-4">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-cyan/5 rounded-full blur-[80px]" />
+      </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-        className="relative w-full max-w-[440px] bg-white rounded-[2rem] p-8 sm:p-10 z-10"
-        style={{
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.08), 0 10px 15px -3px rgba(0, 0, 0, 0.04)"
-        }}
+      <motion.div
+        className="w-full max-w-[400px]"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Top Icon & Extras */}
-        <div className="flex justify-between items-start mb-8">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm"
-               style={{ background: "#F5F3FF" }}>
-            <Shield size={24} style={{ color: "#7C3AED" }} />
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan/10 border border-cyan/20 mb-4">
+            <UserCog className="w-7 h-7 text-cyan" />
           </div>
+          <h1 className="text-[22px] font-bold text-text-primary tracking-tight">Invigilator Portal</h1>
+          <p className="text-[13.5px] text-text-muted mt-1">LMSGuard V2 · Exam Monitoring</p>
         </div>
 
-        {/* Header */}
-        <h1 className="text-[32px] font-bold text-gray-900 mb-2 leading-tight">
-          Welcome back
-        </h1>
-        <p className="text-sm text-gray-500 mb-8 leading-relaxed">
-          {currentConfig.subtitle}
-        </p>
-
-        {/* Role Selectors */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {(["admin", "student", "invigilator"] as Role[]).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => { setRole(r); setIdentifier(""); setPassword(""); setError(""); }}
-              className={`flex-1 min-w-[100px] py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${
-                role === r 
-                  ? "text-white shadow-md"
-                  : "text-gray-600 bg-white border border-gray-200 hover:bg-gray-50"
-              }`}
-              style={{
-                background: role === r ? "linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)" : undefined,
-              }}
-            >
-              {roleConfig[r].buttonText}
-            </button>
-          ))}
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-5">
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {currentConfig.label}
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Mail size={18} className="text-gray-400" />
-              </div>
-              <input 
-                type="text" 
-                value={identifier} 
-                onChange={e => setIdentifier(e.target.value)}
-                placeholder={currentConfig.placeholder} 
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors text-gray-900 placeholder-gray-400"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Password
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Lock size={18} className="text-gray-400" />
-              </div>
-              <input 
-                type={showPass ? "text" : "password"} 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••••" 
-                className="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors text-gray-900 placeholder-gray-400"
-              />
-              <button 
-                type="button" 
-                onClick={() => setShowPass(!showPass)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+        <div className="card p-6">
+          {/* Demo quick-pick */}
+          <div className="mb-4 p-3 rounded-xl bg-surface-2 border border-white/5">
+            <p className="text-[11px] text-text-muted mb-2 uppercase tracking-wide font-medium">Quick Login</p>
+            <div className="flex flex-wrap gap-1.5">
+              {DEMO_ACCOUNTS.map((a) => (
+                <button
+                  key={a.email}
+                  onClick={() => setEmail(a.email)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border",
+                    email === a.email
+                      ? "bg-cyan/15 text-cyan border-cyan/25"
+                      : "bg-surface-3/50 text-text-muted border-white/5 hover:border-white/10"
+                  )}
+                >
+                  {a.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <div className="relative flex items-center justify-center">
-                <input 
-                  type="checkbox" 
-                  checked={rememberMe}
-                  onChange={e => setRememberMe(e.target.checked)}
-                  className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded-md checked:bg-cyan-500 checked:border-cyan-500 transition-colors cursor-pointer"
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[12.5px] font-medium text-text-secondary">Email</label>
+              <div className="relative flex items-center">
+                <Mail className="absolute left-3 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                <input
+                  type="email" value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required className="input-premium pl-9 w-full"
                 />
-                <svg className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
               </div>
-              <span className="text-sm text-gray-600 select-none">Remember me</span>
-            </label>
-            <button type="button" className="text-sm font-medium text-cyan-600 hover:text-cyan-700">
-              Forgot password?
-            </button>
-          </div>
+            </div>
 
-          <AnimatePresence>
+            <div className="space-y-1.5">
+              <label className="text-[12.5px] font-medium text-text-secondary">Password</label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                <input
+                  type={showPwd ? "text" : "password"} value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required className="input-premium pl-9 pr-9 w-full"
+                />
+                <button type="button" onClick={() => setShowPwd((v) => !v)} className="absolute right-3 text-text-muted hover:text-text-secondary">
+                  {showPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
             {error && (
-              <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }} exit={{ opacity:0, height:0 }}
-                className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-                <AlertCircle size={16} className="shrink-0" />
-                <p>{error}</p>
+              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-danger/8 border border-danger/20">
+                <AlertCircle className="w-3.5 h-3.5 text-danger shrink-0 mt-0.5" />
+                <p className="text-[12.5px] text-danger/90">{error}</p>
               </motion.div>
             )}
-          </AnimatePresence>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full py-3.5 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-70 mt-4 shadow-lg shadow-cyan-500/25"
-            style={{ background: "linear-gradient(135deg, #06B6D4 0%, #10B981 100%)" }}
-          >
-            {loading ? (
-              <motion.div animate={{ rotate:360 }} transition={{ duration:0.7, repeat:Infinity, ease:"linear" }}
-                className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white"/>
-            ) : (
-              <>Login <span className="ml-1 opacity-80">→</span></>
-            )}
-          </button>
-        </form>
+            <button type="submit" disabled={loading}
+              className={cn("btn btn-primary w-full justify-center py-2.5 text-[13.5px] mt-1", loading && "opacity-70 cursor-not-allowed")}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Signing in…
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">Sign In <ArrowRight className="w-3.5 h-3.5" /></span>
+              )}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-[12px] text-text-muted mt-5">
+          Admin?{" "}
+          <a href="/admin/login" className="text-primary hover:text-blue-400 transition-colors font-medium">Admin Portal</a>
+        </p>
       </motion.div>
     </div>
   );

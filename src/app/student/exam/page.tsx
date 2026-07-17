@@ -1,276 +1,378 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Play, Send, Clock, Shield, AlertCircle, CheckCircle, Code2, Layout, FileTerminal } from "lucide-react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Badge } from "@/components/ui/Badge";
+import { MOCK_ASSESSMENTS, EXAM_QUESTIONS } from "@/data/studentData";
+import { cn } from "@/lib/utils";
+import {
+  Shield, Clock, ChevronLeft, ChevronRight,
+  CheckCircle2, AlertTriangle, Flag, Send,
+  Circle, CheckCircle,
+} from "lucide-react";
 
-export default function ExamPage() {
-  const router = useRouter();
-  const [code, setCode] = useState("def solve():\n    # Write your code here\n    pass");
-  const [language, setLanguage] = useState("python");
-  const [timeLeft, setTimeLeft] = useState(3600); // 1 hour in seconds
-  const [isRunning, setIsRunning] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [testResults, setTestResults] = useState<any[] | null>(null);
-  
-  const examId = "EX001";
-  const rollNumber = typeof window !== 'undefined' ? sessionStorage.getItem("roll_number") || "21AI001" : "21AI001";
+type QuestionStatus = "unanswered" | "answered" | "flagged";
 
-  // Heartbeat & Status polling
+function ExamContent() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const examId       = searchParams.get("id") ?? "EXAM001";
+
+  const exam      = MOCK_ASSESSMENTS.find((e) => e.id === examId) ?? MOCK_ASSESSMENTS[0];
+  const questions = (EXAM_QUESTIONS as Record<string, typeof EXAM_QUESTIONS.EXAM001>)[examId] ?? EXAM_QUESTIONS.EXAM001;
+
+  const totalSeconds = exam.duration * 60;
+  const [timeLeft,   setTimeLeft]   = useState(totalSeconds);
+  const [current,    setCurrent]    = useState(0);
+  const [answers,    setAnswers]    = useState<Record<number, number>>({});
+  const [statuses,   setStatuses]   = useState<Record<number, QuestionStatus>>({});
+  const [submitted,  setSubmitted]  = useState(false);
+  const [showSubmit, setShowSubmit] = useState(false);
+
+  /* ── Timer ── */
   useEffect(() => {
-    const sId = sessionStorage.getItem("student_id") || "student-001";
-    const rNo = sessionStorage.getItem("roll_number") || "21AI001";
-
-    const heartbeatInterval = setInterval(() => {
-      fetch("http://127.0.0.1:8000/api/student/exam/heartbeat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ student_id: sId, roll_number: rNo, exam_id: examId })
-      }).catch(console.error);
-    }, 10000);
-
-    const statusInterval = setInterval(() => {
-      fetch(`http://127.0.0.1:8000/api/student/exam/status/${examId}/${rNo}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.redirect_to_completed || data.student_status === "QUIT_APPROVED" || data.student_status === "COMPLETED") {
-            router.push("/student/exam/completed");
-          }
-        })
-        .catch(console.error);
-    }, 5000);
-
-    return () => {
-      clearInterval(heartbeatInterval);
-      clearInterval(statusInterval);
-    };
-  }, [router]);
-
-  // Timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(t => (t > 0 ? t - 1 : 0));
+    if (submitted) return;
+    const id = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          clearInterval(id);
+          setSubmitted(true);
+          return 0;
+        }
+        return t - 1;
+      });
     }, 1000);
-    return () => clearInterval(timer);
+    return () => clearInterval(id);
+    // handleSubmit intentionally omitted — timer uses setSubmitted directly
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted]);
+
+  /* ── Auto-submit when timer hits zero ── */
+  useEffect(() => {
+    if (submitted && timeLeft === 0) {
+      const score = Object.entries(answers).filter(
+        ([qi, ai]) => questions[Number(qi)]?.correct === ai
+      ).length;
+      router.push(`/student/completed?score=${score}&total=${questions.length}&exam=${encodeURIComponent(exam.title)}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted]);
+
+  const mm = Math.floor(timeLeft / 60);
+  const ss = timeLeft % 60;
+  const timeStr = `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  const timeWarning = timeLeft < 300;
+  const timeDanger  = timeLeft < 60;
+
+  /* ── Handlers ── */
+  const selectAnswer = useCallback((qIdx: number, optIdx: number) => {
+    setAnswers((p) => ({ ...p, [qIdx]: optIdx }));
+    setStatuses((p) => ({ ...p, [qIdx]: "answered" }));
   }, []);
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  const toggleFlag = useCallback((qIdx: number) => {
+    setStatuses((p) => ({
+      ...p,
+      [qIdx]: p[qIdx] === "flagged"
+        ? answers[qIdx] !== undefined ? "answered" : "unanswered"
+        : "flagged",
+    }));
+  }, [answers]);
 
-  const handleRunCode = () => {
-    setIsRunning(true);
-    setTimeout(() => {
-      setTestResults([
-        { id: 1, input: "5", expected: "25", got: "25", status: "passed" },
-        { id: 2, input: "10", expected: "100", got: "100", status: "passed" },
-        { id: 3, input: "-3", expected: "9", got: "-9", status: "failed" },
-      ]);
-      setIsRunning(false);
-    }, 1500);
-  };
+  const handleSubmit = useCallback(() => {
+    setSubmitted(true);
+    const score = Object.entries(answers).filter(
+      ([qi, ai]) => questions[Number(qi)]?.correct === ai
+    ).length;
+    router.push(`/student/completed?score=${score}&total=${questions.length}&exam=${encodeURIComponent(exam.title)}`);
+  }, [answers, questions, exam.title, router]);
 
-  const handleSubmitCode = async () => {
-    setIsSubmitting(true);
-    try {
-      await fetch("http://127.0.0.1:8000/api/student/exam/submit-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          exam_id: examId,
-          roll_number: rollNumber,
-          question_id: "Q1",
-          language: language,
-          code: code,
-          result_status: "SUBMITTED"
-        })
-      });
-      // Just mock successful submission
-      setTimeout(() => {
-          alert("Code submitted successfully. You can continue editing or wait for the invigilator to close the exam.");
-          setIsSubmitting(false);
-      }, 500);
-    } catch (e) {
-      alert("Failed to submit code. Please try again.");
-      setIsSubmitting(false);
-    }
-  };
+  const q = questions[current];
+  const answeredCount = Object.keys(answers).length;
+  const flaggedCount  = Object.values(statuses).filter((s) => s === "flagged").length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0F172A] text-slate-300 font-sans">
-      {/* Top Header */}
-      <header className="h-14 bg-[#1E293B] border-b border-slate-700/50 flex items-center justify-between px-6 shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Shield size={18} className="text-blue-400" />
-            <span className="font-bold text-white tracking-wide">LMSGuard Coding Exam</span>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header bar */}
+      <header className="h-12 border-b border-white/5 bg-surface/80 backdrop-blur-xl flex items-center justify-between px-5 shrink-0 sticky top-0 z-30">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+            <Shield className="w-3.5 h-3.5 text-white" />
           </div>
-          <div className="h-4 w-px bg-slate-600" />
-          <span className="text-sm text-slate-400 font-medium">DBMS Final Exam</span>
+          <span className="text-[13px] font-bold text-text-primary">LMSGuard</span>
+          <div className="w-px h-4 bg-white/10" />
+          <span className="text-[12.5px] text-text-muted truncate max-w-[240px]">{exam.title}</span>
         </div>
-        
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
-            <Clock size={15} className={timeLeft < 300 ? "text-red-400" : "text-emerald-400"} />
-            <span className={`text-sm font-bold font-mono tracking-wider ${timeLeft < 300 ? "text-red-400" : "text-emerald-400"}`}>
-              {formatTime(timeLeft)}
-            </span>
+
+        <div className="flex items-center gap-4">
+          <div className={cn(
+            "flex items-center gap-2 px-3 py-1 rounded-lg border font-feature tabular-nums",
+            timeDanger  ? "bg-danger/10 border-danger/25 text-danger" :
+            timeWarning ? "bg-warning/10 border-warning/25 text-warning" :
+            "bg-surface-2 border-white/6 text-text-secondary"
+          )}>
+            <Clock className="w-3.5 h-3.5" />
+            <span className="text-[13px] font-semibold">{timeStr}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-white bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full border border-blue-500/20">
-              {rollNumber}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-bold bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              IN EXAM
-            </span>
-          </div>
+          <Badge variant="primary">{answeredCount}/{questions.length} answered</Badge>
+          <button
+            onClick={() => setShowSubmit(true)}
+            className="btn btn-primary text-[12.5px] py-1.5 px-4"
+          >
+            <Send className="w-3.5 h-3.5" /> Submit
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex overflow-hidden">
-        
-        {/* Left Panel: Problem Statement */}
-        <div className="w-[40%] flex flex-col border-r border-slate-700/50 bg-[#0F172A]">
-          <div className="h-12 border-b border-slate-700/50 flex items-center px-5 shrink-0 bg-[#1E293B]/50">
-            <Layout size={16} className="text-slate-400 mr-2" />
-            <span className="text-sm font-semibold text-slate-200">Problem Description</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-700">
-            <h1 className="text-2xl font-bold text-white mb-2">1. Square of a Number</h1>
-            <div className="flex items-center gap-2 mb-6 text-xs font-medium">
-              <span className="px-2 py-1 bg-slate-800 rounded text-slate-300">Marks: 10</span>
-              <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded">Easy</span>
-            </div>
-            
-            <div className="prose prose-invert max-w-none text-sm text-slate-300">
-              <p>Write a program that takes an integer <code className="bg-slate-800 px-1 rounded">N</code> as input and prints its square.</p>
-              
-              <h3 className="text-white mt-6 font-semibold">Input Format</h3>
-              <p>A single integer N.</p>
-              
-              <h3 className="text-white mt-6 font-semibold">Output Format</h3>
-              <p>Print the square of N.</p>
-              
-              <h3 className="text-white mt-6 font-semibold">Example 1</h3>
-              <div className="bg-[#1E293B] p-4 rounded-lg font-mono text-sm border border-slate-700/50 mt-2">
-                <div className="text-slate-500 mb-1">Input:</div>
-                <div className="text-white mb-3">5</div>
-                <div className="text-slate-500 mb-1">Output:</div>
-                <div className="text-white">25</div>
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Question area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-3xl mx-auto space-y-6">
+            {/* Question header */}
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-text-muted font-medium">
+                Question {current + 1} of {questions.length}
+              </span>
+              <div className="flex items-center gap-2">
+                {statuses[current] === "flagged" && (
+                  <Badge variant="warning" dot>Flagged</Badge>
+                )}
+                {answers[current] !== undefined && statuses[current] !== "flagged" && (
+                  <Badge variant="success" dot>Answered</Badge>
+                )}
               </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-1 bg-surface-2 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${((current + 1) / questions.length) * 100}%` }}
+              />
+            </div>
+
+            {/* Question */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={current}
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-5"
+              >
+                <div className="card p-6">
+                  <p className="text-[15px] font-medium text-text-primary leading-relaxed">
+                    <span className="text-primary font-bold mr-2">Q{current + 1}.</span>
+                    {q.text}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {q.options.map((opt, oi) => {
+                    const isSelected = answers[current] === oi;
+                    return (
+                      <button
+                        key={oi}
+                        onClick={() => selectAnswer(current, oi)}
+                        className={cn(
+                          "w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all duration-150",
+                          isSelected
+                            ? "border-primary/50 bg-primary/10 shadow-glow"
+                            : "border-white/6 bg-surface hover:border-primary/25 hover:bg-primary/5"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-[12.5px] font-bold border transition-all",
+                          isSelected
+                            ? "bg-primary text-white border-primary"
+                            : "bg-surface-2 text-text-muted border-white/8"
+                        )}>
+                          {String.fromCharCode(65 + oi)}
+                        </div>
+                        <span className={cn(
+                          "text-[13.5px] font-medium leading-relaxed",
+                          isSelected ? "text-text-primary" : "text-text-secondary"
+                        )}>
+                          {opt}
+                        </span>
+                        <div className="ml-auto shrink-0">
+                          {isSelected
+                            ? <CheckCircle  className="w-4 h-4 text-primary" />
+                            : <Circle       className="w-4 h-4 text-text-subtle" />
+                          }
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Nav buttons */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={() => setCurrent((c) => Math.max(0, c - 1))}
+                disabled={current === 0}
+                className="btn btn-secondary gap-1.5 disabled:opacity-30"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Previous
+              </button>
+
+              <button
+                onClick={() => toggleFlag(current)}
+                className={cn(
+                  "btn gap-1.5",
+                  statuses[current] === "flagged"
+                    ? "btn-warning"
+                    : "btn-ghost"
+                )}
+              >
+                <Flag className="w-3.5 h-3.5" />
+                {statuses[current] === "flagged" ? "Unflag" : "Flag"}
+              </button>
+
+              <button
+                onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}
+                disabled={current === questions.length - 1}
+                className="btn btn-secondary gap-1.5 disabled:opacity-30"
+              >
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Middle/Right Panel: Code Editor & Terminal */}
-        <div className="flex-1 flex flex-col bg-[#0F172A] min-w-0">
-          
-          {/* Editor Header */}
-          <div className="h-12 border-b border-slate-700/50 flex items-center justify-between px-4 shrink-0 bg-[#1E293B]/50">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-slate-400">
-                <Code2 size={16} />
-                <span className="text-sm font-semibold text-slate-200">Code Editor</span>
+        {/* Question palette sidebar */}
+        <div className="w-64 border-l border-white/5 bg-surface/50 p-4 overflow-y-auto no-scrollbar shrink-0">
+          <p className="text-[12px] font-semibold text-text-primary mb-3">Question Palette</p>
+
+          {/* Legend */}
+          <div className="space-y-1.5 mb-4">
+            {[
+              { color: "bg-primary",    label: "Current"   },
+              { color: "bg-success",    label: "Answered"  },
+              { color: "bg-warning",    label: "Flagged"   },
+              { color: "bg-surface-3",  label: "Unanswered"},
+            ].map((l) => (
+              <div key={l.label} className="flex items-center gap-2 text-[11px] text-text-muted">
+                <div className={`w-3 h-3 rounded ${l.color}`} />
+                {l.label}
               </div>
-              <select 
-                value={language} 
-                onChange={(e) => setLanguage(e.target.value)}
-                className="bg-[#0F172A] border border-slate-700 text-sm rounded px-3 py-1 text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
-              >
-                <option value="c">C</option>
-                <option value="cpp">C++</option>
-                <option value="python">Python</option>
-                <option value="java">Java</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={handleRunCode}
-                disabled={isRunning}
-                className="flex items-center gap-2 px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50"
-              >
-                {isRunning ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Play size={14} />}
-                Run Code
-              </button>
-              <button 
-                onClick={handleSubmitCode}
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-md shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
-              >
-                <Send size={14} />
-                Submit Code
-              </button>
-            </div>
-          </div>
-          
-          {/* Editor Area */}
-          <div className="flex-1 p-4 relative">
-            {/* Simple Textarea Editor as placeholder for Monaco */}
-            <textarea
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              spellCheck={false}
-              className="w-full h-full bg-transparent text-slate-300 font-mono text-sm leading-relaxed resize-none focus:outline-none"
-              style={{ tabSize: 4 }}
-            />
+            ))}
           </div>
 
-          {/* Result Terminal Panel */}
-          <div className="h-64 border-t border-slate-700/50 bg-[#1E293B] flex flex-col shrink-0">
-            <div className="h-10 border-b border-slate-700/50 flex items-center px-4 bg-[#0F172A]/50">
-              <FileTerminal size={14} className="text-slate-400 mr-2" />
-              <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Test Results</span>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              {!testResults ? (
-                <div className="h-full flex items-center justify-center text-slate-500 text-sm font-medium">
-                  Run your code to see test results here.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-4">
-                    {testResults.every(t => t.status === 'passed') ? (
-                       <span className="text-emerald-400 font-bold flex items-center gap-1.5 text-sm"><CheckCircle size={16}/> Passed all test cases!</span>
-                    ) : (
-                       <span className="text-red-400 font-bold flex items-center gap-1.5 text-sm"><AlertCircle size={16}/> Some test cases failed</span>
+          {/* Grid */}
+          <div className="grid grid-cols-5 gap-1.5">
+            {questions.map((_, qi) => {
+              const isCurrent  = qi === current;
+              const isAnswered = answers[qi] !== undefined;
+              const isFlagged  = statuses[qi] === "flagged";
+
+              return (
+                <button
+                  key={qi}
+                  onClick={() => setCurrent(qi)}
+                  className={cn(
+                    "w-9 h-9 rounded-lg text-[11.5px] font-semibold transition-all border",
+                    isCurrent  ? "bg-primary text-white border-primary shadow-sm scale-105" :
+                    isFlagged  ? "bg-warning/20 text-warning border-warning/30" :
+                    isAnswered ? "bg-success/15 text-success border-success/25" :
+                    "bg-surface-2 text-text-muted border-white/6 hover:border-white/12"
+                  )}
+                >
+                  {qi + 1}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Stats */}
+          <div className="mt-5 space-y-2 pt-4 border-t border-white/5">
+            {[
+              { label: "Answered",   value: answeredCount,                          color: "text-success" },
+              { label: "Unanswered", value: questions.length - answeredCount,       color: "text-text-muted" },
+              { label: "Flagged",    value: flaggedCount,                           color: "text-warning" },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center justify-between text-[12px]">
+                <span className="text-text-muted">{s.label}</span>
+                <span className={`font-semibold font-feature ${s.color}`}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setShowSubmit(true)}
+            className="btn btn-primary w-full justify-center mt-4 text-[12.5px]"
+          >
+            <Send className="w-3.5 h-3.5" /> Submit Exam
+          </button>
+        </div>
+      </div>
+
+      {/* Submit confirmation modal */}
+      <AnimatePresence>
+        {showSubmit && (
+          <>
+            <motion.div
+              className="modal-overlay"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowSubmit(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                className="pointer-events-auto w-full max-w-sm glass rounded-2xl border border-white/8 p-6 shadow-xl"
+                initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex flex-col items-center text-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Send className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-[16px] font-bold text-text-primary mb-1">Submit Exam?</h2>
+                    <p className="text-[13px] text-text-muted">
+                      You have answered <span className="text-text-primary font-semibold">{answeredCount}</span> of{" "}
+                      <span className="text-text-primary font-semibold">{questions.length}</span> questions.
+                    </p>
+                    {answeredCount < questions.length && (
+                      <div className="flex items-center gap-1.5 mt-2 justify-center">
+                        <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                        <p className="text-[12px] text-warning">
+                          {questions.length - answeredCount} questions unanswered
+                        </p>
+                      </div>
                     )}
                   </div>
-                  
-                  <table className="w-full text-left text-sm border-collapse">
-                    <thead>
-                      <tr className="text-slate-400 border-b border-slate-700">
-                        <th className="pb-2 font-medium">Input</th>
-                        <th className="pb-2 font-medium">Expected Output</th>
-                        <th className="pb-2 font-medium">Your Output</th>
-                        <th className="pb-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700/50">
-                      {testResults.map((t) => (
-                        <tr key={t.id} className="text-slate-300 font-mono text-xs">
-                          <td className="py-3">{t.input}</td>
-                          <td className="py-3">{t.expected}</td>
-                          <td className="py-3">{t.got}</td>
-                          <td className="py-3">
-                            <span className={`px-2 py-1 rounded font-bold ${t.status === 'passed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                              {t.status.toUpperCase()}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="flex gap-3 w-full">
+                    <button onClick={() => setShowSubmit(false)} className="btn btn-secondary flex-1 justify-center">
+                      Continue
+                    </button>
+                    <button onClick={handleSubmit} className="btn btn-primary flex-1 justify-center">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Confirm
+                    </button>
+                  </div>
                 </div>
-              )}
+              </motion.div>
             </div>
-          </div>
-        </div>
-      </main>
+          </>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+export default function StudentExamPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    }>
+      <ExamContent />
+    </Suspense>
   );
 }

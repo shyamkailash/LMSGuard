@@ -27,7 +27,7 @@ export default function DashboardLayout({
   const [alertQueue,   setAlertQueue]   = useState<WSViolationEvent[]>([]);
   const [netIssue,     setNetIssue]     = useState<NetworkIssue | null>(null);
   const [netQueue,     setNetQueue]     = useState<NetworkIssue[]>([]);
-  const [mode,         setMode]         = useState("connecting");
+  const [mode, setMode] = useState<"live" | "demo" | "connecting">("connecting");
   const [notifs,       setNotifs]       = useState(0);
   const [invProfile,   setInvProfile]   = useState<InvigilatorProfile | null>(null);
   const [sessionClass, setSessionClass] = useState<AvailableClass | null>(null);
@@ -45,12 +45,12 @@ export default function DashboardLayout({
     } catch {}
 
     const assignedClass = (() => {
-      try { const c = JSON.parse(sessionStorage.getItem("invSelectedClass")); return c?.id || "CSE-3A"; }
+      try { const c = JSON.parse(sessionStorage.getItem("invSelectedClass") ?? "{}"); return c?.id || "CSE-3A"; }
       catch { return "CSE-3A"; }
     })();
 
     connectSocket(assignedClass);
-    const offConn = onEvent("connection", ({ mode:m }) => setMode(m));
+    const offConn = onEvent("connection", ({ mode: m }) => setMode(m as "live" | "demo"));
     const offVio  = onEvent("violation_detected", data => {
       if (!data.assignedClass || data.assignedClass === assignedClass) {
         setAlertQueue(q => [...q, data]);

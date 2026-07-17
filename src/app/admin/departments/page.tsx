@@ -1,169 +1,234 @@
 "use client";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import AdminLayout from "@/components/AdminLayout";
-import { DEPARTMENTS, ALL_CLASSES } from "@/data/adminData";
-import { Building2, Plus, Pencil, ChevronRight, X, CheckCircle } from "lucide-react";
+import { AppShell, PageHeader } from "@/components/layouts";
+import { Badge, Button, Modal, ModalFooter, StatCard, DataTable } from "@/components/ui";
+import type { Column } from "@/components/ui";
+import { BarChartComponent } from "@/components/features/charts";
+import { motion } from "framer-motion";
+import { MOCK_DEPARTMENTS, DEPARTMENT_ANALYTICS } from "@/mock/departments";
+import { ANIMATION_VARIANTS, CHART_COLORS } from "@/constants";
+import type { Department } from "@/types";
+import { useFilter } from "@/hooks/useFilter";
+import {
+  Building2, Plus, Search, Users, BookOpen,
+  UserCog, MoreHorizontal, Pencil, Trash2, Eye,
+} from "lucide-react";
 
-export default function DepartmentsPage() {
-  const [showModal, setShowModal] = useState(false);
-  const [form,      setForm]      = useState({ name:"", code:"", hod:"" });
-  const [saved,     setSaved]     = useState(false);
-
-  async function handleAdd(e) {
-    e.preventDefault();
-    setSaved(true);
-    await new Promise(r => setTimeout(r, 900));
-    setSaved(false); setShowModal(false);
-    setForm({ name:"", code:"", hod:"" });
-  }
+function DeptModal({
+  open, onClose, dept,
+}: {
+  open: boolean;
+  onClose: () => void;
+  dept: Department | null;
+}) {
+  const [form, setForm] = useState({
+    name: dept?.name ?? "",
+    code: dept?.code ?? "",
+    hod:  dept?.hod  ?? "",
+    email: dept?.email ?? "",
+    building: dept?.building ?? "",
+  });
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((p) => ({ ...p, [k]: e.target.value }));
 
   return (
-    <AdminLayout title="Departments" subtitle="Academic department management">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex flex-wrap gap-3">
-          {[
-            { label:"Total Departments", value:DEPARTMENTS.length, color:"var(--primary)" },
-            { label:"Total Classes",     value:ALL_CLASSES.length, color:"var(--primary)"  },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="px-4 py-2 rounded-xl"
-              style={{ background:"var(--card)", border:`1px solid ${color}30` }}>
-              <span className="text-sm font-bold" style={{ color }}>{value}</span>
-              <span className="text-xs ml-2" style={{ color:"var(--text-muted)" }}>{label}</span>
-            </div>
-          ))}
-        </div>
-        <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-          style={{ background:"linear-gradient(135deg,#1B4D1E,#0F2D12)" }}>
-          <Plus size={13}/> Add Department
-        </motion.button>
-      </div>
-
-      {/* Department Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {DEPARTMENTS.map((dept, i) => {
-          const deptClasses = ALL_CLASSES.filter(c => c.dept === dept.name);
-          return (
-            <motion.div key={dept.id}
-              initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.08 }}
-              whileHover={{ y:-3, transition:{ duration:0.18 } }}
-              className="rounded-2xl p-4"
-              style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background:"var(--purple-muted)", border:"1px solid rgba(27,77,30,0.2)" }}>
-                  <Building2 size={17} style={{ color:"var(--primary)" }}/>
-                </div>
-                <span className="badge badge-primary text-[10px]">{dept.code}</span>
-              </div>
-              <h3 className="font-bold text-sm mb-1" style={{ color:"var(--text-primary)" }}>{dept.name}</h3>
-              <p className="text-[11px] mb-3" style={{ color:"var(--text-muted)" }}>HOD: {dept.hod}</p>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                {[
-                  { label:"Students", value:dept.students, color:"var(--primary)" },
-                  { label:"Classes",  value:deptClasses.length, color:"var(--primary)" },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="rounded-xl p-2 text-center"
-                    style={{ background:"var(--bg-deep)", border:"1px solid var(--border)" }}>
-                    <p className="text-lg font-bold" style={{ color }}>{value}</p>
-                    <p className="text-[10px]" style={{ color:"var(--text-muted)" }}>{label}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-1.5">
-                <button className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={{ background:"var(--primary-muted)", color:"var(--primary)", border:"1px solid rgba(37,99,235,0.2)" }}>
-                  <Pencil size={10}/> Edit
-                </button>
-                <a href="/admin/classes" className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={{ background:"var(--purple-muted)", color:"var(--primary)", border:"1px solid rgba(27,77,30,0.2)" }}>
-                  Classes <ChevronRight size={10}/>
-                </a>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Classes breakdown table */}
-      <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.4 }}
-        className="rounded-2xl overflow-hidden"
-        style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-        <div className="px-5 py-4" style={{ borderBottom:"1px solid var(--border)", background:"var(--bg-deep)" }}>
-          <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>All Classes Overview</h3>
-        </div>
-        <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr] gap-4 px-5 py-3"
-          style={{ borderBottom:"1px solid var(--border)", background:"var(--bg-deep)" }}>
-          {["Class","Department","Year","Section","Enrolled"].map(h => (
-            <p key={h} className="text-[10px] font-bold uppercase tracking-wider" style={{ color:"var(--text-muted)" }}>{h}</p>
-          ))}
-        </div>
-        {ALL_CLASSES.map((c, i) => (
-          <div key={c.id}
-            className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr] gap-4 px-5 py-3 table-row"
-            style={{ borderBottom:"1px solid var(--border-soft)" }}>
-            <p className="text-sm font-semibold flex items-center" style={{ color:"var(--text-primary)" }}>{c.name}</p>
-            <p className="text-sm flex items-center" style={{ color:"var(--text-secondary)" }}>{c.dept}</p>
-            <p className="text-sm flex items-center" style={{ color:"var(--text-muted)" }}>{c.year}</p>
-            <p className="text-sm flex items-center" style={{ color:"var(--text-muted)" }}>{c.section}</p>
-            <p className="text-sm font-bold flex items-center" style={{ color:"var(--primary)" }}>{c.strength}</p>
+    <Modal open={open} onClose={onClose} title={dept ? "Edit Department" : "Add Department"} size="md">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 space-y-1.5">
+            <label className="text-[12.5px] font-medium text-text-secondary">Department Name</label>
+            <input className="input-premium w-full" value={form.name} onChange={set("name")} placeholder="e.g. Computer Science & Engineering" />
           </div>
-        ))}
-      </motion.div>
+          <div className="space-y-1.5">
+            <label className="text-[12.5px] font-medium text-text-secondary">Department Code</label>
+            <input className="input-premium w-full" value={form.code} onChange={set("code")} placeholder="e.g. CSE" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[12.5px] font-medium text-text-secondary">Building</label>
+            <input className="input-premium w-full" value={form.building} onChange={set("building")} placeholder="e.g. Block A" />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <label className="text-[12.5px] font-medium text-text-secondary">Head of Department</label>
+            <input className="input-premium w-full" value={form.hod} onChange={set("hod")} placeholder="e.g. Dr. Ramesh Kumar" />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <label className="text-[12.5px] font-medium text-text-secondary">Email</label>
+            <input className="input-premium w-full" type="email" value={form.email} onChange={set("email")} placeholder="dept@ssiet.ac.in" />
+          </div>
+        </div>
+      </div>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={onClose}>{dept ? "Save Changes" : "Add Department"}</Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
 
-      {/* Add Modal */}
-      <AnimatePresence>
-        {showModal && (
-          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background:"rgba(0,0,0,0.6)", backdropFilter:"blur(4px)" }}
-            onClick={() => setShowModal(false)}>
-            <motion.div initial={{ scale:0.9, y:16 }} animate={{ scale:1, y:0 }} exit={{ scale:0.9 }}
-              transition={{ type:"spring", stiffness:280, damping:24 }}
-              className="w-full max-w-sm rounded-2xl overflow-hidden"
-              style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow-xl)" }}
-              onClick={e=>e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4"
-                style={{ borderBottom:"1px solid var(--border)", background:"rgba(124,58,237,0.08)" }}>
-                <h3 className="font-bold" style={{ color:"var(--text-primary)" }}>Add Department</h3>
-                <button onClick={() => setShowModal(false)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background:"var(--bg-deep)", color:"var(--text-muted)" }}>
-                  <X size={13}/>
-                </button>
-              </div>
-              <form onSubmit={handleAdd} className="p-5 space-y-3">
-                {[
-                  { label:"Department Name", key:"name", ph:"e.g. Computer Science" },
-                  { label:"Code",            key:"code", ph:"e.g. CS"               },
-                  { label:"HOD Name",        key:"hod",  ph:"Dr. Full Name"         },
-                ].map(({ label, key, ph }) => (
-                  <div key={key}>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1"
-                           style={{ color:"var(--text-muted)" }}>{label}</label>
-                    <input type="text" value={form[key]} placeholder={ph}
-                      onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))}
-                      className="input-field" required/>
-                  </div>
-                ))}
-                <div className="flex gap-2 pt-1">
-                  <motion.button whileHover={{ scale:1.01 }} whileTap={{ scale:0.99 }} type="submit"
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
-                    style={{ background: saved?"var(--success)":"linear-gradient(135deg,#1B4D1E,#0F2D12)" }}>
-                    {saved ? <><CheckCircle size={13}/>Added</> : <><Plus size={13}/>Add Department</>}
-                  </motion.button>
-                  <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-xl text-sm btn-secondary">
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+const COLUMNS: Column<Department>[] = [
+  {
+    key: "name", label: "Department", sortable: true,
+    render: (_, d) => (
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Building2 className="w-3.5 h-3.5 text-primary" />
+        </div>
+        <div>
+          <p className="text-[13px] font-medium text-text-primary">{d.name}</p>
+          <p className="text-[11.5px] text-text-muted">{d.code} · Est. {d.established}</p>
+        </div>
+      </div>
+    ),
+  },
+  { key: "hod",      label: "Head of Dept",  sortable: true,
+    render: (v) => <span className="text-[12.5px] text-text-secondary">{v as string}</span> },
+  { key: "students", label: "Students",  sortable: true, align: "center",
+    render: (v) => (
+      <div className="flex items-center justify-center gap-1.5">
+        <Users className="w-3 h-3 text-text-muted" />
+        <span className="text-[12.5px] font-medium text-text-secondary font-feature">{v as number}</span>
+      </div>
+    ),
+  },
+  { key: "classes",  label: "Classes",   sortable: true, align: "center",
+    render: (v) => (
+      <div className="flex items-center justify-center gap-1.5">
+        <BookOpen className="w-3 h-3 text-text-muted" />
+        <span className="text-[12.5px] font-medium text-text-secondary">{v as number}</span>
+      </div>
+    ),
+  },
+  { key: "invigilators", label: "Invigilators", sortable: true, align: "center",
+    render: (v) => (
+      <div className="flex items-center justify-center gap-1.5">
+        <UserCog className="w-3 h-3 text-text-muted" />
+        <span className="text-[12.5px] font-medium text-text-secondary">{v as number}</span>
+      </div>
+    ),
+  },
+  { key: "building", label: "Building",  render: (v) => <span className="text-[12.5px] text-text-muted">{v as string}</span> },
+  { key: "status",   label: "Status",
+    render: (v) => <Badge variant={v === "active" ? "success" : "muted"} dot>{v as string}</Badge>,
+  },
+  {
+    key: "actions", label: "", align: "right",
+    render: (_, d) => <DeptActions dept={d} />,
+  },
+];
+
+function DeptActions({ dept }: { dept: Department }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <button className="icon-btn" title="View"><Eye className="w-3.5 h-3.5" /></button>
+      <button className="icon-btn" title="Edit" onClick={() => setOpen(true)}><Pencil className="w-3.5 h-3.5" /></button>
+      <button className="icon-btn text-danger/60 hover:text-danger hover:bg-danger/10" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+      <DeptModal open={open} onClose={() => setOpen(false)} dept={dept} />
+    </div>
+  );
+}
+
+export default function DepartmentsPage() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const { search, setSearch, paginated, total, page, setPage, totalPages, handleSort, sortKey, sortDir } =
+    useFilter({ data: MOCK_DEPARTMENTS as unknown as Record<string, unknown>[], searchKeys: ["name", "code", "hod"] });
+
+  const chartData = DEPARTMENT_ANALYTICS.map((d) => ({ name: d.name, value: d.students }));
+
+  return (
+    <AppShell variant="admin">
+      <div className="p-6 space-y-6">
+        <PageHeader
+          title="Departments"
+          description={`${MOCK_DEPARTMENTS.length} departments · ${MOCK_DEPARTMENTS.reduce((a, d) => a + d.students, 0)} total students`}
+          actions={
+            <Button variant="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setModalOpen(true)}>
+              Add Department
+            </Button>
+          }
+        />
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-4 gap-4">
+          {[
+            { label: "Departments",  value: MOCK_DEPARTMENTS.length,                                    color: "primary" as const, icon: <Building2 className="w-4 h-4" /> },
+            { label: "Total Students", value: MOCK_DEPARTMENTS.reduce((a, d) => a + d.students, 0),    color: "cyan"    as const, icon: <Users     className="w-4 h-4" /> },
+            { label: "Total Classes",  value: MOCK_DEPARTMENTS.reduce((a, d) => a + d.classes,  0),    color: "success" as const, icon: <BookOpen  className="w-4 h-4" /> },
+            { label: "Invigilators",   value: MOCK_DEPARTMENTS.reduce((a, d) => a + (d.invigilators ?? 0), 0), color: "purple" as const, icon: <UserCog   className="w-4 h-4" /> },
+          ].map((s, i) => (
+            <StatCard key={i} index={i} label={s.label} value={s.value} icon={s.icon} color={s.color} />
+          ))}
+        </div>
+
+        {/* Chart + table */}
+        <div className="grid grid-cols-3 gap-4">
+          <motion.div
+            variants={ANIMATION_VARIANTS.fadeUp} initial="hidden" animate="visible"
+            className="card p-5"
+          >
+            <p className="section-title mb-1">Students by Department</p>
+            <p className="section-subtitle mb-4">Distribution across all departments</p>
+            <BarChartComponent data={chartData} multiColor height={200} />
           </motion.div>
-        )}
-      </AnimatePresence>
-    </AdminLayout>
+
+          <motion.div
+            variants={ANIMATION_VARIANTS.fadeUp} initial="hidden" animate="visible"
+            className="card p-5"
+          >
+            <p className="section-title mb-1">Violations by Department</p>
+            <p className="section-subtitle mb-4">Total violations per dept</p>
+            <BarChartComponent
+              data={DEPARTMENT_ANALYTICS.map((d) => ({ name: d.name, value: d.violations }))}
+              color={CHART_COLORS.danger}
+              height={200}
+            />
+          </motion.div>
+
+          <motion.div
+            variants={ANIMATION_VARIANTS.fadeUp} initial="hidden" animate="visible"
+            className="card p-5"
+          >
+            <p className="section-title mb-1">Pass Rate by Department</p>
+            <p className="section-subtitle mb-4">Avg exam pass rate (%)</p>
+            <BarChartComponent
+              data={DEPARTMENT_ANALYTICS.map((d) => ({ name: d.name, value: d.passRate }))}
+              color={CHART_COLORS.success}
+              height={200}
+            />
+          </motion.div>
+        </div>
+
+        {/* Table */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <p className="section-title">All Departments</p>
+              <p className="section-subtitle">{total} results</p>
+            </div>
+            <div className="relative flex items-center">
+              <Search className="absolute left-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+              <input
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search departments…"
+                className="input-premium pl-8 w-56 h-8 text-[12.5px]"
+              />
+            </div>
+          </div>
+          <DataTable
+            columns={COLUMNS}
+            data={paginated as unknown as Department[]}
+            page={page} totalPages={totalPages} total={total} perPage={20}
+            onPageChange={setPage}
+            sortKey={sortKey as string | null}
+            sortDir={sortDir}
+            onSort={handleSort as (k: string) => void}
+            emptyMessage="No departments found"
+            emptyIcon={<Building2 className="w-8 h-8 text-text-muted/40" />}
+          />
+        </div>
+      </div>
+
+      <DeptModal open={modalOpen} onClose={() => setModalOpen(false)} dept={null} />
+    </AppShell>
   );
 }

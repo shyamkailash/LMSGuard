@@ -1,256 +1,262 @@
 "use client";
 import { useState } from "react";
+import { AppShell, PageHeader } from "@/components/layouts";
+import { Badge, Button } from "@/components/ui";
+import { Avatar } from "@/components/ui/Avatar";
+import { useAuthStore } from "@/store/authStore";
 import { motion } from "framer-motion";
-import AdminLayout from "@/components/AdminLayout";
+import { ANIMATION_VARIANTS } from "@/constants";
 import {
-  Shield, Bell, Monitor, Cpu, Save, X, Plus,
-  Wifi, Lock, Eye, Zap, Server
+  Settings, User, Bell, Shield, Building2,
+  Save, Camera, Eye, EyeOff, Check,
 } from "lucide-react";
 
-function Toggle({ on, onToggle }) {
+type SettingsTab = "profile" | "institution" | "monitoring" | "notifications" | "security";
+
+const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
+  { id: "profile",      label: "Profile",      icon: <User      className="w-4 h-4" /> },
+  { id: "institution",  label: "Institution",  icon: <Building2 className="w-4 h-4" /> },
+  { id: "monitoring",   label: "Monitoring",   icon: <Settings  className="w-4 h-4" /> },
+  { id: "notifications",label: "Notifications",icon: <Bell      className="w-4 h-4" /> },
+  { id: "security",     label: "Security",     icon: <Shield    className="w-4 h-4" /> },
+];
+
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <motion.button whileTap={{ scale:0.92 }} onClick={onToggle}
-      className="relative w-10 h-5 rounded-full transition-colors shrink-0"
-      style={{ background: on ? "var(--primary)" : "var(--border)" }}>
-      <motion.div animate={{ x: on ? 20 : 2 }}
-        transition={{ type:"spring", stiffness:500, damping:30 }}
-        className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm"/>
-    </motion.button>
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative w-10 h-5 rounded-full transition-colors ${checked ? "bg-primary" : "bg-surface-3"}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`} />
+    </button>
   );
 }
 
-const DEFAULT_BLOCKED = ["VS Code", "Discord", "Telegram", "WhatsApp", "Zoom"];
+function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+      <div>
+        <p className="text-[13.5px] font-medium text-text-primary">{label}</p>
+        {description && <p className="text-[12px] text-text-muted mt-0.5">{description}</p>}
+      </div>
+      <div className="ml-6 shrink-0">{children}</div>
+    </div>
+  );
+}
 
 export default function AdminSettingsPage() {
-  const [aiSettings, setAiSettings] = useState({
-    aiEngine:         true,
-    faceDetection:    true,
-    browserDetection: true,
-    idleDetection:    true,
-    screenCapture:    true,
-    autoReport:       true,
-    emailAlerts:      true,
-    networkMonitor:   true,
-  });
-  const [blocked,      setBlocked]      = useState(DEFAULT_BLOCKED);
-  const [newApp,       setNewApp]       = useState("");
-  const [riskThresh,   setRiskThresh]   = useState(70);
-  const [shotInterval, setShotInterval] = useState(2);
-  const [idleTime,     setIdleTime]     = useState(60);
-  const [maxRetries,   setMaxRetries]   = useState(3);
-  const [networkRules, setNetworkRules] = useState({
-    autoExtraTime:    true,
-    notifyOnDisconn:  true,
-    graceSeconds:     30,
-  });
+  const [tab, setTab] = useState<SettingsTab>("profile");
+  const { userName, userEmail, userAvatar, userDept } = useAuthStore();
   const [saved, setSaved] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
 
-  const toggle = k => setAiSettings(s => ({ ...s, [k]:!s[k] }));
+  const [notifs, setNotifs] = useState({
+    violations: true, network: true, session: true, email: false,
+  });
+  const [monitoring, setMonitoring] = useState({
+    aiDetection: true, faceVerification: true, autoTerminate: false, screenshotInterval: 30,
+    riskThresholdWarn: 30, riskThresholdCrit: 65, maxTabSwitches: 2, idleTimeout: 5,
+  });
 
-  function removeApp(a) { setBlocked(b => b.filter(x => x !== a)); }
-  function addApp(e) {
-    e.preventDefault();
-    const v = newApp.trim();
-    if (v && !blocked.includes(v)) { setBlocked(b => [...b, v]); setNewApp(""); }
-  }
-
-  async function handleSave() {
+  const handleSave = () => {
     setSaved(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setSaved(false);
-  }
-
-  const SECTIONS = [
-    {
-      title:"AI Detection Modules", icon:Zap, color:"var(--primary)",
-      items:[
-        { key:"aiEngine",         label:"AI Engine",              desc:"Core AI monitoring engine — global"               },
-        { key:"faceDetection",    label:"Face Detection",         desc:"Detect multiple or absent faces system-wide"      },
-        { key:"browserDetection", label:"Browser Switch",         desc:"Detect tab and window switching"                  },
-        { key:"idleDetection",    label:"Idle Detection",         desc:"Flag inactive student sessions"                   },
-        { key:"screenCapture",    label:"Screen Capture",         desc:"Periodic automated screenshots"                   },
-      ],
-    },
-    {
-      title:"Alert & Reports", icon:Bell, color:"var(--warning)",
-      items:[
-        { key:"autoReport",   label:"Auto-generate Reports", desc:"Auto-report when exam ends"                    },
-        { key:"emailAlerts",  label:"Email Alerts",          desc:"Send email to invigilators on critical alerts"  },
-      ],
-    },
-    {
-      title:"Network Monitoring", icon:Wifi, color:"var(--primary)",
-      items:[
-        { key:"networkMonitor",  label:"Network Monitor",      desc:"Detect student network disconnections"        },
-        { key:"notifyOnDisconn", label:"Notify on Disconnect",  desc:"Popup alert when student goes offline", isNet:true },
-        { key:"autoExtraTime",   label:"Auto Extra Time Prompt",desc:"Prompt invigilator to grant extra time",  isNet:true },
-      ],
-    },
-  ];
+    setTimeout(() => setSaved(false), 2500);
+  };
 
   return (
-    <AdminLayout title="System Settings" subtitle="Admin-level system configuration — full control">
+    <AppShell variant="admin">
+      <div className="p-6 space-y-6">
+        <PageHeader
+          title="Settings"
+          description="Manage your account, institution and monitoring preferences"
+          actions={
+            <Button
+              variant={saved ? "success" : "primary"}
+              icon={saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              onClick={handleSave}
+            >
+              {saved ? "Saved!" : "Save Changes"}
+            </Button>
+          }
+        />
 
-      {/* Admin scope banner */}
-      <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
-        className="flex items-center gap-3 p-4 rounded-2xl mb-5"
-        style={{ background:"rgba(124,58,237,0.08)", border:"1px solid rgba(27,77,30,0.2)" }}>
-        <Shield size={15} style={{ color:"var(--primary)" }}/>
-        <div>
-          <p className="text-sm font-semibold" style={{ color:"var(--text-primary)" }}>
-            Admin System Settings
-          </p>
-          <p className="text-[11px]" style={{ color:"var(--text-muted)" }}>
-            Changes apply to the entire platform — all classes, all invigilators
-          </p>
-        </div>
-      </motion.div>
-
-      <div className="max-w-2xl space-y-5">
-        {/* Toggle Sections */}
-        {SECTIONS.map(({ title, icon:Icon, color, items }, si) => (
-          <motion.div key={title}
-            initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:si*0.09 }}
-            className="rounded-2xl overflow-hidden"
-            style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-            <div className="flex items-center gap-2 px-5 py-4"
-                 style={{ borderBottom:"1px solid var(--border)" }}>
-              <Icon size={14} style={{ color }}/>
-              <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>{title}</h3>
-            </div>
-            <div className="p-3 space-y-0.5">
-              {items.map(({ key, label, desc, isNet }) => (
-                <div key={key}
-                  className="flex items-center justify-between px-3 py-3 rounded-xl transition-colors cursor-default"
-                  onMouseEnter={e => e.currentTarget.style.background="var(--bg-deep)"}
-                  onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-                  <div className="mr-3">
-                    <p className="text-sm font-medium" style={{ color:"var(--text-primary)" }}>{label}</p>
-                    <p className="text-xs" style={{ color:"var(--text-muted)" }}>{desc}</p>
-                  </div>
-                  <Toggle
-                    on={isNet ? networkRules[key] : aiSettings[key]}
-                    onToggle={() => isNet
-                      ? setNetworkRules(r => ({ ...r, [key]:!r[key] }))
-                      : toggle(key)
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        ))}
-
-        {/* Blocked Applications */}
-        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
-          className="rounded-2xl overflow-hidden"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <div className="flex items-center gap-2 px-5 py-4"
-               style={{ borderBottom:"1px solid var(--border)" }}>
-            <Lock size={14} style={{ color:"var(--danger)" }}/>
-            <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>
-              Blocked Applications — System Wide
-            </h3>
-          </div>
-          <div className="p-4">
-            <div className="flex flex-wrap gap-2 mb-3">
-              {blocked.map(app => (
-                <motion.div key={app} initial={{ scale:0 }} animate={{ scale:1 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium"
-                  style={{ background:"var(--danger-muted)", border:"1px solid rgba(220,38,38,0.2)",
-                           color:"var(--danger)" }}>
-                  <button onClick={() => removeApp(app)} className="shrink-0">
-                    <X size={10}/>
-                  </button>
-                  {app}
-                </motion.div>
-              ))}
-            </div>
-            <form onSubmit={addApp} className="flex gap-2">
-              <input value={newApp} onChange={e => setNewApp(e.target.value)}
-                placeholder="Add blocked application…" className="input-field flex-1 text-sm"/>
-              <button type="submit" className="btn-primary px-3 py-2 text-xs">
-                <Plus size={13}/>
+        <div className="grid grid-cols-4 gap-6">
+          {/* Sidebar tabs */}
+          <div className="col-span-1 card p-2 h-fit">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`nav-link w-full mb-0.5 ${tab === t.id ? "active" : ""}`}
+              >
+                <span className="nav-icon">{t.icon}</span>
+                {t.label}
               </button>
-            </form>
-          </div>
-        </motion.div>
-
-        {/* Threshold Sliders */}
-        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.38 }}
-          className="rounded-2xl overflow-hidden"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <div className="flex items-center gap-2 px-5 py-4"
-               style={{ borderBottom:"1px solid var(--border)" }}>
-            <Cpu size={14} style={{ color:"var(--success)" }}/>
-            <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>
-              Thresholds &amp; Timing
-            </h3>
-          </div>
-          <div className="p-5 space-y-5">
-            {[
-              { label:"AI Risk Threshold",     unit:"%",  value:riskThresh,   set:setRiskThresh,   min:10,  max:100, step:5  },
-              { label:"Screenshot Interval",   unit:"sec",value:shotInterval, set:setShotInterval, min:1,   max:30,  step:1  },
-              { label:"Idle Detection Time",   unit:"sec",value:idleTime,     set:setIdleTime,     min:10,  max:300, step:10 },
-              { label:"Network Retry Attempts",unit:"",   value:maxRetries,   set:setMaxRetries,   min:1,   max:10,  step:1  },
-            ].map(({ label, unit, value, set, min, max, step }) => (
-              <div key={label}>
-                <div className="flex justify-between mb-2">
-                  <label className="text-sm" style={{ color:"var(--text-secondary)" }}>{label}</label>
-                  <span className="text-sm font-bold" style={{ color:"var(--text-primary)" }}>
-                    {value}{unit}
-                  </span>
-                </div>
-                <input type="range" min={min} max={max} step={step} value={value}
-                  onChange={e => set(Number(e.target.value))}
-                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                  style={{ accentColor:"var(--primary)", background:"var(--border)" }}/>
-              </div>
             ))}
           </div>
-        </motion.div>
 
-        {/* Network Grace Period */}
-        <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.44 }}
-          className="rounded-2xl overflow-hidden"
-          style={{ background:"var(--card)", border:"1px solid var(--border)", boxShadow:"var(--shadow)" }}>
-          <div className="flex items-center gap-2 px-5 py-4"
-               style={{ borderBottom:"1px solid var(--border)" }}>
-            <Wifi size={14} style={{ color:"var(--primary)" }}/>
-            <h3 className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>
-              Network Grace Period
-            </h3>
-          </div>
-          <div className="p-5">
-            <div className="flex justify-between mb-2">
-              <label className="text-sm" style={{ color:"var(--text-secondary)" }}>
-                Grace seconds before flagging disconnect
-              </label>
-              <span className="text-sm font-bold" style={{ color:"var(--text-primary)" }}>
-                {networkRules.graceSeconds}s
-              </span>
-            </div>
-            <input type="range" min={5} max={120} step={5} value={networkRules.graceSeconds}
-              onChange={e => setNetworkRules(r=>({...r,graceSeconds:Number(e.target.value)}))}
-              className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-              style={{ accentColor:"var(--primary)", background:"var(--border)" }}/>
-            <p className="text-xs mt-2" style={{ color:"var(--text-muted)" }}>
-              Student has {networkRules.graceSeconds}s to reconnect before invigilator is alerted
-            </p>
-          </div>
-        </motion.div>
+          {/* Content */}
+          <motion.div
+            key={tab}
+            variants={ANIMATION_VARIANTS.fadeIn}
+            initial="hidden" animate="visible"
+            className="col-span-3 space-y-4"
+          >
+            {tab === "profile" && (
+              <div className="card p-6">
+                <p className="section-title mb-6">Profile Information</p>
+                <div className="flex items-start gap-6 mb-6">
+                  <div className="relative group">
+                    <Avatar name={userName ?? "A"} size="xl" />
+                    <div className="absolute inset-0 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                      <Camera className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 grid grid-cols-2 gap-4">
+                    {[
+                      { label: "Full Name",     defaultValue: userName ?? "",     placeholder: "Dr. Ramesh Kumar" },
+                      { label: "Email Address", defaultValue: userEmail ?? "",    placeholder: "admin@ssiet.ac.in", type: "email" },
+                      { label: "Department",    defaultValue: userDept ?? "",     placeholder: "Computer Science" },
+                      { label: "Phone",         defaultValue: "+91 98765 10001",  placeholder: "+91 XXXXX XXXXX" },
+                    ].map((f) => (
+                      <div key={f.label} className="space-y-1.5">
+                        <label className="text-[12.5px] font-medium text-text-secondary">{f.label}</label>
+                        <input type={f.type} defaultValue={f.defaultValue} placeholder={f.placeholder} className="input-premium w-full" />
+                      </div>
+                    ))}
+                    <div className="col-span-2 space-y-1.5">
+                      <label className="text-[12.5px] font-medium text-text-secondary">Bio</label>
+                      <textarea rows={2} className="input-premium w-full resize-none" placeholder="Short bio…" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {/* Save */}
-        <motion.button whileHover={{ scale:1.01 }} whileTap={{ scale:0.99 }}
-          onClick={handleSave}
-          className="w-full py-3 font-bold text-sm rounded-2xl text-white flex items-center justify-center gap-2 transition-all"
-          style={{
-            background: saved ? "var(--success)" : "linear-gradient(135deg,#1B4D1E,#0F2D12)",
-            boxShadow: "0 4px 15px rgba(27,77,30,0.25)",
-          }}>
-          {saved ? <>✓ Settings Saved — Applied System Wide</> : <><Save size={14}/> Save System Settings</>}
-        </motion.button>
+            {tab === "institution" && (
+              <div className="card p-6">
+                <p className="section-title mb-6">Institution Details</p>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "Institution Name", defaultValue: "Sri Shakthi Institute of Engineering & Technology" },
+                    { label: "Short Name",        defaultValue: "SSIET" },
+                    { label: "City",              defaultValue: "Coimbatore, Tamil Nadu" },
+                    { label: "Email",             defaultValue: "admin@ssiet.ac.in", type: "email" },
+                    { label: "Phone",             defaultValue: "+91 98765 43210" },
+                    { label: "Website",           defaultValue: "www.ssiet.ac.in" },
+                  ].map((f) => (
+                    <div key={f.label} className="space-y-1.5">
+                      <label className="text-[12.5px] font-medium text-text-secondary">{f.label}</label>
+                      <input type={f.type} defaultValue={f.defaultValue} className="input-premium w-full" />
+                    </div>
+                  ))}
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-[12.5px] font-medium text-text-secondary">Address</label>
+                    <textarea rows={2} className="input-premium w-full resize-none" defaultValue="Coimbatore – 641 062, Tamil Nadu, India." />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === "monitoring" && (
+              <div className="card p-6">
+                <p className="section-title mb-6">Monitoring Configuration</p>
+                <SettingRow label="AI Violation Detection" description="Enable AI-powered real-time violation detection">
+                  <ToggleSwitch checked={monitoring.aiDetection} onChange={(v) => setMonitoring((p) => ({ ...p, aiDetection: v }))} />
+                </SettingRow>
+                <SettingRow label="Face Verification" description="Verify student identity via webcam">
+                  <ToggleSwitch checked={monitoring.faceVerification} onChange={(v) => setMonitoring((p) => ({ ...p, faceVerification: v }))} />
+                </SettingRow>
+                <SettingRow label="Auto-Terminate on Critical" description="End exam automatically when risk exceeds critical threshold">
+                  <ToggleSwitch checked={monitoring.autoTerminate} onChange={(v) => setMonitoring((p) => ({ ...p, autoTerminate: v }))} />
+                </SettingRow>
+                <div className="grid grid-cols-2 gap-4 pt-4">
+                  {[
+                    { label: "Screenshot Interval (sec)", key: "screenshotInterval", min: 10, max: 120 },
+                    { label: "Risk Warn Threshold (%)",   key: "riskThresholdWarn", min: 20, max: 60  },
+                    { label: "Risk Critical Threshold (%)",key: "riskThresholdCrit",min: 50, max: 90  },
+                    { label: "Max Tab Switches",          key: "maxTabSwitches",    min: 1,  max: 10  },
+                    { label: "Idle Timeout (min)",        key: "idleTimeout",       min: 1,  max: 20  },
+                  ].map((f) => (
+                    <div key={f.key} className="space-y-1.5">
+                      <label className="text-[12.5px] font-medium text-text-secondary">{f.label}</label>
+                      <input
+                        type="number" min={f.min} max={f.max}
+                        value={monitoring[f.key as keyof typeof monitoring] as number}
+                        onChange={(e) => setMonitoring((p) => ({ ...p, [f.key]: Number(e.target.value) }))}
+                        className="input-premium w-full"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === "notifications" && (
+              <div className="card p-6">
+                <p className="section-title mb-6">Notification Preferences</p>
+                <SettingRow label="Violation Alerts" description="Get notified on every new violation">
+                  <ToggleSwitch checked={notifs.violations} onChange={(v) => setNotifs((p) => ({ ...p, violations: v }))} />
+                </SettingRow>
+                <SettingRow label="Network Issues" description="Alert when a student goes offline">
+                  <ToggleSwitch checked={notifs.network} onChange={(v) => setNotifs((p) => ({ ...p, network: v }))} />
+                </SettingRow>
+                <SettingRow label="Session Events" description="Start, pause, and end session alerts">
+                  <ToggleSwitch checked={notifs.session} onChange={(v) => setNotifs((p) => ({ ...p, session: v }))} />
+                </SettingRow>
+                <SettingRow label="Email Notifications" description="Receive daily summary emails">
+                  <ToggleSwitch checked={notifs.email} onChange={(v) => setNotifs((p) => ({ ...p, email: v }))} />
+                </SettingRow>
+              </div>
+            )}
+
+            {tab === "security" && (
+              <div className="card p-6 space-y-6">
+                <div>
+                  <p className="section-title mb-4">Change Password</p>
+                  <div className="space-y-3 max-w-sm">
+                    {["Current Password", "New Password", "Confirm Password"].map((l) => (
+                      <div key={l} className="space-y-1.5">
+                        <label className="text-[12.5px] font-medium text-text-secondary">{l}</label>
+                        <div className="relative flex items-center">
+                          <input
+                            type={showPwd ? "text" : "password"}
+                            className="input-premium w-full pr-9"
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPwd((v) => !v)}
+                            className="absolute right-3 text-text-muted hover:text-text-secondary"
+                          >
+                            {showPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="primary" size="sm">Update Password</Button>
+                  </div>
+                </div>
+                <div className="border-t border-white/5 pt-6">
+                  <p className="section-title mb-4">Session Security</p>
+                  <SettingRow label="Two-Factor Authentication" description="Require OTP on every login">
+                    <ToggleSwitch checked={false} onChange={() => {}} />
+                  </SettingRow>
+                  <SettingRow label="IP Restriction" description="Allow login only from allowed IPs">
+                    <ToggleSwitch checked={false} onChange={() => {}} />
+                  </SettingRow>
+                  <div className="pt-4">
+                    <label className="text-[12.5px] font-medium text-text-secondary">Session Timeout (minutes)</label>
+                    <input type="number" defaultValue={60} className="input-premium w-32 mt-1.5" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
       </div>
-    </AdminLayout>
+    </AppShell>
   );
 }

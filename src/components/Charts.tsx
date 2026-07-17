@@ -30,7 +30,7 @@ const PIE = [
   { name:"Critical",value:2, color:"#EF4444" },
 ];
 
-function CT({ active, payload, label }) {
+function CT({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-2xl px-4 py-3 text-xs shadow-xl"

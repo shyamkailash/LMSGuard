@@ -1,165 +1,166 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowLeft, Shield, CheckCircle } from "lucide-react";
-import Link from "next/link";
-import { ADMIN_ACCOUNTS, getAdminByEmail } from "@/data/adminData";
+import { motion } from "framer-motion";
+import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Zap } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import { MOCK_ADMIN_ACCOUNTS } from "@/mock/invigilators";
+import { cn } from "@/lib/utils";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState("");
+  const login  = useAuthStore((s) => s.login);
 
-  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+  const [email,    setEmail]    = useState("admin@ssiet.ac.in");
+  const [password, setPassword] = useState("admin123");
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { setError("Please fill in all fields."); return; }
-    setError(""); setLoading(true);
-    await new Promise(r => setTimeout(r, 1300));
-    const admin = getAdminByEmail(email);
-    sessionStorage.setItem("adminProfile", JSON.stringify(admin));
+    setError("");
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 900));
+
+    const account = MOCK_ADMIN_ACCOUNTS.find(
+      (a) => a.email.toLowerCase() === email.toLowerCase() && a.password === password
+    );
+
+    if (!account) {
+      setError("Invalid credentials. Try admin@ssiet.ac.in / admin123");
+      setLoading(false);
+      return;
+    }
+
+    login({
+      role:       "admin",
+      userId:     account.id,
+      userName:   account.name,
+      userEmail:  account.email,
+      userAvatar: account.avatar,
+      userDept:   account.department,
+    });
     router.push("/admin/dashboard");
-  }
+  };
 
   return (
-    <div className="min-h-screen flex overflow-hidden" style={{ background:"var(--bg)" }}>
-      {/* ── Left panel ── */}
-      <div className="hidden lg:flex flex-col justify-between w-[420px] shrink-0 p-10 relative overflow-hidden"
-        style={{ background:"linear-gradient(160deg,#3B0764 0%,#6D28D9 50%,#7C3AED 100%)" }}>
-        <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full opacity-10" style={{ background:"white" }}/>
-        <div className="absolute -bottom-24 -right-12 w-72 h-72 rounded-full opacity-10" style={{ background:"white" }}/>
-        <div className="relative"><div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                 style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.25)" }}>
-              <Shield size={17} style={{ color:"rgba(255,255,255,0.9)" }}/>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white">LMSGuard AI</p>
-              <p className="text-[10px]" style={{ color:"rgba(255,255,255,0.55)" }}>Examination Monitor</p>
-            </div>
-          </div></div>
-        <div className="relative space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ background:"rgba(255,255,255,0.15)", color:"white", border:"1px solid rgba(255,255,255,0.2)" }}>
-            <Shield size={11}/> Admin · Full Control Access
-          </div>
-          <h2 className="text-3xl font-extrabold text-white leading-tight">Admin Control<br/>Portal</h2>
-          <p className="text-sm leading-relaxed" style={{ color:"rgba(255,255,255,0.7)" }}>
-            Complete system management — users, departments, exams, monitoring and reports.
-          </p>
-          <div className="space-y-2 pt-2">
-            {["Manage all students & invigilators","Create & assign examinations","System-wide monitoring control","College-level report generation"].map(f=>(
-              <div key={f} className="flex items-center gap-2">
-                <CheckCircle size={13} style={{ color:"#C4B5FD" }}/>
-                <span className="text-sm" style={{ color:"rgba(255,255,255,0.8)" }}>{f}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <p className="relative text-xs" style={{ color:"rgba(255,255,255,0.4)" }}>
-          © 2026 Institute of Engineering & Technology
-        </p>
+    <div className="min-h-screen bg-background mesh-bg flex items-center justify-center px-4">
+      {/* Background glow */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 rounded-full blur-[80px]" />
       </div>
 
-      {/* ── Right form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
-        <div className="absolute top-5 left-5">
-          <Link href="/">
-            <motion.button whileHover={{ x:-2 }} className="flex items-center gap-1.5 text-sm"
-              style={{ color:"var(--text-muted)" }}>
-              <ArrowLeft size={14}/> Back
-            </motion.button>
-          </Link>
-        </div>
-        <div className="absolute top-5 right-5"></div>
-        <div className="w-full max-w-sm">
-          <div className="flex justify-center mb-6 lg:hidden">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm"
-                 style={{ background:"linear-gradient(135deg,#2563EB,#1D4ED8)" }}>
-              <Shield size={20} className="text-white"/>
+      <motion.div
+        className="w-full max-w-[400px]"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 mb-4 relative">
+            <Shield className="w-7 h-7 text-primary" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-background flex items-center justify-center">
+              <Zap className="w-2 h-2 text-white" />
             </div>
           </div>
-          <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.4 }}>
-            <div className="mb-8">
-              <h1 className="text-2xl font-extrabold mb-1" style={{ color:"var(--text-primary)" }}>Admin Access</h1>
-              <p className="text-sm" style={{ color:"var(--text-muted)" }}>Sign in to the Admin Control Portal</p>
-            </div>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                  style={{ color:"var(--text-secondary)" }}>Email Address</label>
-                <div className="relative">
-                  <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color:"var(--text-muted)" }}/>
-                  <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
-                    placeholder="your@email.com" className="input-field pl-10 !rounded-xl"/>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                  style={{ color:"var(--text-secondary)" }}>Password</label>
-                <div className="relative">
-                  <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color:"var(--text-muted)" }}/>
-                  <input type={showPass?"text":"password"} value={password}
-                    onChange={e=>setPassword(e.target.value)}
-                    placeholder="••••••••••" className="input-field pl-10 pr-11 !rounded-xl"/>
-                  <button type="button" onClick={()=>setShowPass(v=>!v)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color:"var(--text-muted)" }}>
-                    {showPass?<EyeOff size={14}/>:<Eye size={14}/>}
-                  </button>
-                </div>
-              </div>
-              <AnimatePresence>
-                {error && (
-                  <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }}
-                    exit={{ opacity:0, height:0 }}
-                    className="flex items-center gap-2 text-xs px-3.5 py-2.5 rounded-xl"
-                    style={{ color:"var(--danger)", background:"var(--danger-soft)", border:"1px solid var(--danger-border)" }}>
-                    <AlertCircle size={13}/> {error}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <motion.button whileHover={{ scale:1.01 }} whileTap={{ scale:0.98 }}
-                type="submit" disabled={loading}
-                className="w-full py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-                style={{ background:"linear-gradient(135deg,#7C3AED,#6D28D9)", boxShadow:"0 4px 16px rgba(124,58,237,0.3)" }}>
-                {loading ? (
-                  <>
-                    <motion.div animate={{ rotate:360 }} transition={{ duration:0.7, repeat:Infinity, ease:"linear" }}
-                      className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white"/>
-                    Signing in…
-                  </>
-                ) : <><Shield size={14}/> Admin Sign In</>}
-              </motion.button>
-            </form>
-            <div className="mt-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1 h-px" style={{ background:"var(--border)" }}/>
-                <span className="text-[11px]" style={{ color:"var(--text-muted)" }}>Demo accounts</span>
-                <div className="flex-1 h-px" style={{ background:"var(--border)" }}/>
-              </div>
-              {ADMIN_ACCOUNTS.map(a => (
-                <motion.button key={a.id} whileHover={{ scale:1.01 }} type="button"
-                  onClick={()=>{ setEmail(a.email); setPassword("admin123"); }}
-                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left mb-2 transition-all"
-                  style={{ background:"var(--bg-subtle)", border:"1px solid var(--border)" }}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(124,58,237,0.25)"}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                    style={{ background:"linear-gradient(135deg,#7C3AED,#6D28D9)" }}>{a.avatar}</div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold" style={{ color:"var(--text-primary)" }}>{a.name}</p>
-                    <p className="text-[10px] truncate" style={{ color:"var(--text-muted)" }}>{a.role} · {a.email}</p>
-                  </div>
-                </motion.button>
-              ))}
-              <p className="text-center text-[11px] mt-2" style={{ color:"var(--text-muted)" }}>Password: any text</p>
-            </div>
-          </motion.div>
+          <h1 className="text-[22px] font-bold text-text-primary tracking-tight">Admin Portal</h1>
+          <p className="text-[13.5px] text-text-muted mt-1">LMSGuard V2 · AI Monitoring Platform</p>
         </div>
-      </div>
+
+        {/* Card */}
+        <div className="card p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label className="text-[12.5px] font-medium text-text-secondary">Email Address</label>
+              <div className="relative flex items-center">
+                <Mail className="absolute left-3 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@ssiet.ac.in"
+                  required
+                  className="input-premium pl-9 w-full"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label className="text-[12.5px] font-medium text-text-secondary">Password</label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                <input
+                  type={showPwd ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="input-premium pl-9 pr-9 w-full"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-3 text-text-muted hover:text-text-secondary transition-colors"
+                  aria-label={showPwd ? "Hide password" : "Show password"}
+                >
+                  {showPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-danger/8 border border-danger/20"
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-danger shrink-0 mt-0.5" />
+                <p className="text-[12.5px] text-danger/90">{error}</p>
+              </motion.div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className={cn(
+                "btn btn-primary w-full justify-center py-2.5 text-[13.5px] mt-1",
+                loading && "opacity-70 cursor-not-allowed"
+              )}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Authenticating…
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  Sign In <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              )}
+            </button>
+          </form>
+
+          {/* Demo hint */}
+          <div className="mt-4 p-3 rounded-xl bg-surface-2 border border-white/5">
+            <p className="text-[11.5px] text-text-muted text-center">
+              Demo: <span className="text-text-secondary font-medium">admin@ssiet.ac.in</span> / <span className="text-text-secondary font-medium">admin123</span>
+            </p>
+          </div>
+        </div>
+
+        <p className="text-center text-[12px] text-text-muted mt-5">
+          Not an admin?{" "}
+          <a href="/login" className="text-primary hover:text-blue-400 transition-colors font-medium">
+            Invigilator login
+          </a>
+        </p>
+      </motion.div>
     </div>
   );
 }

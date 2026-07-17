@@ -1,277 +1,389 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/DashboardLayout";
-import StudentCard from "@/components/StudentCard";
-import StudentDetailModal from "@/components/StudentDetailModal";
-import { onEvent } from "@/services/websocket";
-import type { AvailableClass, AvailableExam, MonitoringStudent } from "@/types";
-import { CLASS_STUDENTS } from "@/data/invigilatorData";
+import { useState, useMemo, useEffect } from "react";
+import { AppShell, PageHeader } from "@/components/layouts";
+import { Badge, Button, Modal, ModalFooter } from "@/components/ui";
+import { Avatar } from "@/components/ui/Avatar";
+import { RiskMeter } from "@/components/ui/RiskMeter";
+import { StudentCard } from "@/components/features/monitoring/StudentCard";
+import { AreaChart } from "@/components/features/charts";
+import { motion, AnimatePresence } from "framer-motion";
+import { MOCK_MONITORING_STUDENTS } from "@/mock/students";
+import { MOCK_VIOLATIONS, MOCK_AI_ALERTS, MOCK_TIMELINE } from "@/mock/violations";
+import { CHART_COLORS } from "@/constants";
+import { getRiskInfo } from "@/hooks/useRisk";
+import { useClock } from "@/hooks/useClock";
+import type { MonitoringStudent } from "@/types";
 import {
-  Search, Users, CheckCircle, AlertTriangle,
-  RefreshCw, Wifi, Shield, BookOpen, ChevronRight, AlertCircle, WifiOff
+  Activity, AlertTriangle, Users, Play, Pause,
+  Square, LayoutGrid, List, RefreshCw, Download,
+  Clock, Shield, Zap, Volume2, XCircle, CheckCheck,
+  ChevronDown, Wifi, WifiOff,
 } from "lucide-react";
 
-const FILTERS = [
-  { value:"all",          label:"All",          icon:Users,         color:"var(--primary)" },
-  { value:"safe",         label:"Safe",         icon:CheckCircle,   color:"var(--success)" },
-  { value:"warning",      label:"Warning",      icon:AlertTriangle, color:"var(--warning)" },
-  { value:"violation",    label:"Violation",    icon:AlertTriangle, color:"var(--danger)"  },
-  { value:"disconnected", label:"Offline",      icon:WifiOff,       color:"var(--danger)"  },
+const RISK_OVER_TIME = [
+  { name: "10:00", value: 18 }, { name: "10:10", value: 22 },
+  { name: "10:20", value: 35 }, { name: "10:30", value: 48 },
+  { name: "10:40", value: 62 }, { name: "10:50", value: 55 },
+  { name: "11:00", value: 44 },
 ];
 
-export default function MonitoringPage() {
-  const router = useRouter();
-  const [sessionClass, setSessionClass] = useState<AvailableClass | null>(null);
-  const [sessionExam,  setSessionExam]  = useState<AvailableExam | null>(null);
-  const [students,  setStudents]  = useState<MonitoringStudent[]>([]);
-  const [search,    setSearch]    = useState("");
-  const [filter,    setFilter]    = useState("all");
-  const [selected,  setSelected]  = useState<MonitoringStudent | null>(null);
-  const [spinning,  setSpinning]  = useState(false);
-  const [ready,     setReady]     = useState(false);
+type SessionState = "waiting" | "active" | "paused" | "ended";
 
-  useEffect(() => {
-    const clsRaw  = sessionStorage.getItem("invSelectedClass");
-    const examRaw = sessionStorage.getItem("invSelectedExam");
-    let cls  = null;
-    let exam = null;
-    try { if (clsRaw)  cls  = JSON.parse(clsRaw);  } catch {}
-    try { if (examRaw) exam = JSON.parse(examRaw);  } catch {}
-    setSessionClass(cls?.id  ? cls  : null);
-    setSessionExam (exam?.id ? exam : null);
-
-    if (cls?.id) {
-      // Stamp exam title on each student card
-      const base = CLASS_STUDENTS[cls.id] || [];
-      setStudents(base.map(s => ({ ...s, exam: exam?.title || s.exam || "—" })));
-      setReady(true);
-    } else {
-      setReady(false);
-    }
-  }, []);
-
-  // Real-time updates
-  useEffect(() => {
-    const assignedClass = sessionClass?.id;
-    if (!assignedClass) return;
-
-    const offUpdate = onEvent("screen_update", ({ studentId, risk, assignedClass:ac }) => {
-      if (ac && ac !== assignedClass) return;
-      setStudents(prev => prev.map(s =>
-        s.id === studentId ? { ...s, risk:Math.min(100, risk) } : s
-      ));
-    });
-    const offNet = onEvent("network_update", ({ studentId, networkStatus, assignedClass:ac }) => {
-      if (ac && ac !== assignedClass) return;
-      setStudents(prev => prev.map(s =>
-        s.id === studentId ? { ...s, networkStatus } : s
-      ));
-    });
-    const offViol = onEvent("violation_detected", data => {
-      if (data.assignedClass && data.assignedClass !== assignedClass) return;
-      setStudents(prev => prev.map(s =>
-        s.id === data.studentId
-          ? { ...s,
-              risk:       Math.min(100, data.risk || s.risk),
-              status:     data.severity === "critical" ? "violation" : "warning",
-              violations: [
-                { time:data.time, type:data.type, detail:data.detail, severity:data.severity },
-                ...(s.violations||[]),
-              ],
-            }
-          : s
-      ));
-    });
-    return () => { offUpdate(); offNet(); offViol(); };
-  }, [sessionClass]);
-
-  const handleRefresh = useCallback(() => {
-    setSpinning(true);
-    setTimeout(() => setSpinning(false), 700);
-  }, []);
-
-  const counts = {
-    all:          students.length,
-    safe:         students.filter(s => s.status==="safe").length,
-    warning:      students.filter(s => s.status==="warning").length,
-    violation:    students.filter(s => s.status==="violation").length,
-    disconnected: students.filter(s => s.networkStatus==="disconnected").length,
-  };
-
-  const filtered = students.filter(s => {
-    const q = search.toLowerCase();
-    const matchSearch = s.name.toLowerCase().includes(q) || s.regno.toLowerCase().includes(q);
-    const matchFilter = filter === "all"
-      || (filter === "disconnected" ? s.networkStatus === "disconnected" : s.status === filter);
-    return matchSearch && matchFilter;
-  });
-
-  // ── No session guard ──
-  if (!ready) {
-    return (
-      <DashboardLayout title="Live Monitoring" subtitle="No active session">
-        <div className="flex flex-col items-center justify-center py-24 text-center max-w-sm mx-auto">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-            style={{ background:"var(--warning-muted)", border:"1px solid rgba(217,119,6,0.2)" }}>
-            <AlertCircle size={28} style={{ color:"var(--warning)" }}/>
-          </div>
-          <h2 className="text-lg font-bold mb-2" style={{ color:"var(--text-primary)" }}>
-            No Active Session
-          </h2>
-          <p className="text-sm mb-6" style={{ color:"var(--text-muted)" }}>
-            You need to select a class and exam before monitoring. Go back to Dashboard to set up your session.
-          </p>
-          <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-            onClick={() => router.push("/dashboard")}
-            className="btn-primary px-6 py-2.5 text-sm">
-            ← Back to Dashboard
-          </motion.button>
-        </div>
-      </DashboardLayout>
-    );
-  }
+/* ── Session Control Bar ── */
+function SessionControlBar({
+  sessionState, setSessionState, elapsed,
+  onlineCount, violationCount,
+}: {
+  sessionState: SessionState;
+  setSessionState: (s: SessionState) => void;
+  elapsed: number;
+  onlineCount: number;
+  violationCount: number;
+}) {
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+  const fmt = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
 
   return (
-    <DashboardLayout
-      title="Live Monitoring"
-      subtitle={`${sessionClass?.label} · ${sessionExam?.title}`}
-    >
-      {/* ── Session context banner ── */}
-      <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
-        transition={{ duration:0.3 }}
-        className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl mb-5"
-        style={{ background:"linear-gradient(135deg,rgba(37,99,235,0.1),rgba(37,99,235,0.04))",
-                 border:"1px solid rgba(37,99,235,0.2)" }}>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background:"var(--primary-muted)", border:"1px solid rgba(37,99,235,0.2)" }}>
-              <Shield size={15} style={{ color:"var(--primary)" }}/>
-            </div>
-            <div>
-              <p className="text-xs font-bold" style={{ color:"var(--text-primary)" }}>
-                {sessionClass?.label}
-              </p>
-              <p className="text-[10px]" style={{ color:"var(--text-muted)" }}>
-                Selected class · {sessionClass?.strength} students enrolled
-              </p>
-            </div>
+    <div className="flex items-center justify-between px-5 py-3 rounded-2xl bg-surface border border-white/6 shadow-md">
+      <div className="flex items-center gap-5">
+        {/* Live badge */}
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
+          sessionState === "active" ? "bg-success/10 border-success/25" :
+          sessionState === "paused" ? "bg-warning/10 border-warning/25" :
+          "bg-surface-2 border-white/6"
+        }`}>
+          <div className={`relative w-2 h-2 ${sessionState === "active" ? "live-dot" : ""}`}>
+            {sessionState === "active" && <div className="live-ring" />}
+            {sessionState !== "active" && <div className="w-2 h-2 rounded-full bg-text-muted" />}
           </div>
-          <div className="h-7 w-px hidden sm:block" style={{ background:"var(--border)" }}/>
-          <div className="flex items-center gap-1.5">
-            <BookOpen size={12} style={{ color:"var(--primary)" }}/>
-            <span className="text-sm font-medium" style={{ color:"var(--text-secondary)" }}>
-              {sessionExam?.title}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
-            style={{ background:"var(--success-muted)", border:"1px solid rgba(22,163,74,0.2)",
-                     color:"var(--success)" }}>
-            <Wifi size={10}/>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] inline-block mx-0.5 live-blink"/>
-            All streams live
-          </div>
-          <span className="text-xs font-medium" style={{ color:"var(--text-muted)" }}>
-            {students.length} students
+          <span className={`text-[12px] font-semibold ${
+            sessionState === "active" ? "text-success" :
+            sessionState === "paused" ? "text-warning" : "text-text-muted"
+          }`}>
+            {sessionState === "active" ? "LIVE" : sessionState === "paused" ? "PAUSED" : sessionState.toUpperCase()}
           </span>
-          {counts.disconnected > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold"
-              style={{ background:"var(--danger-muted)", border:"1px solid rgba(220,38,38,0.25)",
-                       color:"var(--danger)" }}>
-              <WifiOff size={10}/>
-              {counts.disconnected} offline
+        </div>
+
+        {/* Timer */}
+        <div className="flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-text-muted" />
+          <span className="text-[13px] font-semibold font-feature tabular-nums text-text-secondary">{fmt}</span>
+        </div>
+
+        {/* Stats */}
+        <div className="flex items-center gap-4 text-[12px]">
+          <span className="flex items-center gap-1.5 text-text-muted">
+            <Users className="w-3.5 h-3.5 text-success" />
+            <span className="text-success font-semibold">{onlineCount}</span> online
+          </span>
+          <span className="flex items-center gap-1.5 text-text-muted">
+            <AlertTriangle className="w-3.5 h-3.5 text-danger" />
+            <span className="text-danger font-semibold">{violationCount}</span> violations
+          </span>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center gap-2">
+        {sessionState === "waiting" && (
+          <Button variant="success" icon={<Play className="w-3.5 h-3.5" />} onClick={() => setSessionState("active")}>
+            Start Exam
+          </Button>
+        )}
+        {sessionState === "active" && (
+          <>
+            <Button variant="secondary" size="sm" icon={<Pause className="w-3.5 h-3.5" />} onClick={() => setSessionState("paused")}>Pause</Button>
+            <Button variant="danger"    size="sm" icon={<Square className="w-3.5 h-3.5" />} onClick={() => setSessionState("ended")}>End Exam</Button>
+          </>
+        )}
+        {sessionState === "paused" && (
+          <>
+            <Button variant="success"   size="sm" icon={<Play  className="w-3.5 h-3.5" />} onClick={() => setSessionState("active")}>Resume</Button>
+            <Button variant="danger"    size="sm" icon={<Square className="w-3.5 h-3.5" />} onClick={() => setSessionState("ended")}>End Exam</Button>
+          </>
+        )}
+        {sessionState === "ended" && (
+          <Badge variant="muted">Session Ended</Badge>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Warn Student Modal ── */
+function WarnModal({ student, onClose }: { student: MonitoringStudent; onClose: () => void }) {
+  const [message, setMessage] = useState("");
+  const TEMPLATES = [
+    "You have been detected switching tabs. Please focus on the exam.",
+    "Unauthorized application detected. Close all non-exam windows immediately.",
+    "Multiple faces detected in your camera. Ensure you are alone.",
+    "Your clipboard activity has been flagged. Do not copy/paste during the exam.",
+  ];
+  return (
+    <Modal open onClose={onClose} title={`Warn: ${student.name}`} size="md">
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-warning/8 border border-warning/20">
+          <Avatar name={student.name} size="sm" />
+          <div>
+            <p className="text-[13px] font-medium text-text-primary">{student.name}</p>
+            <p className="text-[12px] text-text-muted">{student.regno} · Risk: {student.risk}%</p>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[12.5px] font-medium text-text-secondary">Quick Templates</p>
+          <div className="space-y-1.5">
+            {TEMPLATES.map((t, i) => (
+              <button key={i} onClick={() => setMessage(t)}
+                className={`w-full text-left p-2.5 rounded-xl text-[12px] border transition-all ${
+                  message === t ? "border-warning/40 bg-warning/8 text-warning" : "border-white/5 text-text-muted hover:border-white/10 hover:text-text-secondary"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[12.5px] font-medium text-text-secondary">Custom Message</label>
+          <textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)}
+            className="input-premium w-full resize-none" placeholder="Type a custom warning…" />
+        </div>
+      </div>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="danger" icon={<Volume2 className="w-3.5 h-3.5" />} onClick={onClose}>Send Warning</Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+export default function InvigilatorMonitoringPage() {
+  const [sessionState, setSessionState] = useState<SessionState>("active");
+  const [view,          setView]         = useState<"grid" | "list">("grid");
+  const [riskFilter,    setRiskFilter]   = useState("all");
+  const [elapsed,       setElapsed]      = useState(3720);
+  const [warnStudent,   setWarnStudent]  = useState<MonitoringStudent | null>(null);
+  const [detailStudent, setDetailStudent] = useState<MonitoringStudent | null>(null);
+  const [activePanel,   setActivePanel]  = useState<"violations" | "alerts" | "timeline">("violations");
+
+  useEffect(() => {
+    if (sessionState !== "active") return;
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [sessionState]);
+
+  const students = MOCK_MONITORING_STUDENTS;
+  const filtered = useMemo(() => {
+    if (riskFilter === "all") return students;
+    return students.filter((s) => s.status === riskFilter);
+  }, [students, riskFilter]);
+
+  const violations = students.filter((s) => s.status === "violation").length;
+  const warnings   = students.filter((s) => s.status === "warning").length;
+  const online     = students.filter((s) => s.isOnline).length;
+  const offline    = students.filter((s) => !s.isOnline).length;
+
+  return (
+    <AppShell variant="invigilator">
+      <div className="p-6 space-y-4">
+        <PageHeader
+          title="Live Monitoring"
+          description="DBMS Final Exam · CSE-3A · 20 Students"
+          badge={<Badge variant="success" dot>Session Active</Badge>}
+          actions={
+            <div className="flex items-center gap-2">
+              <button className="icon-btn"><RefreshCw className="w-3.5 h-3.5" /></button>
+              <button className="icon-btn"><Download  className="w-3.5 h-3.5" /></button>
             </div>
-          )}
-        </div>
-      </motion.div>
+          }
+        />
 
-      {/* ── Controls ── */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2"
-                  style={{ color:"var(--text-muted)" }}/>
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or register no…"
-            className="input-field pl-9"/>
-        </div>
+        {/* Session control */}
+        <SessionControlBar
+          sessionState={sessionState} setSessionState={setSessionState}
+          elapsed={elapsed} onlineCount={online} violationCount={violations}
+        />
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {FILTERS.map(({ value, label, icon:Icon, color }) => {
-            const active = filter === value;
-            return (
-              <motion.button key={value} whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-                onClick={() => setFilter(value)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all"
-                style={{
-                  background:  active ? `${color}20` : "var(--card)",
-                  color:       active ? color : "var(--text-secondary)",
-                  borderColor: active ? `${color}40` : "var(--border)",
-                }}>
-                <Icon size={11}/> {label}
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                  style={{ background:active ? `${color}30` : "var(--bg-deep)",
-                           color:active ? color : "var(--text-muted)" }}>
-                  {counts[value]}
-                </span>
-              </motion.button>
-            );
-          })}
-          <motion.button whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
-            onClick={handleRefresh}
-            className="w-9 h-9 rounded-xl flex items-center justify-center btn-secondary">
-            <motion.div animate={{ rotate:spinning ? 360 : 0 }} transition={{ duration:0.7 }}>
-              <RefreshCw size={13}/>
-            </motion.div>
-          </motion.button>
-        </div>
-      </div>
-
-      {/* ── Summary row ── */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm" style={{ color:"var(--text-muted)" }}>
-          Showing{" "}
-          <span className="font-semibold" style={{ color:"var(--text-primary)" }}>
-            {filtered.length}
-          </span>{" "}
-          of {students.length} students
-        </p>
-        <a href="/violations" className="flex items-center gap-1 text-xs font-medium"
-           style={{ color:"var(--primary)" }}>
-          View violations <ChevronRight size={11}/>
-        </a>
-      </div>
-
-      {/* ── Student grid ── */}
-      {filtered.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filtered.map((s, i) => (
-            <StudentCard key={s.id} student={s} index={i} onViewStudent={setSelected}/>
+        {/* Risk summary */}
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: "Online",    value: online,    color: "text-success", bg: "bg-success/8  border-success/15"   },
+            { label: "Warning",   value: warnings,  color: "text-warning", bg: "bg-warning/8  border-warning/15"   },
+            { label: "Violation", value: violations,color: "text-danger",  bg: "bg-danger/8   border-danger/15"    },
+            { label: "Offline",   value: offline,   color: "text-text-muted", bg: "bg-surface-2 border-white/6"    },
+          ].map((s) => (
+            <div key={s.label} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${s.bg}`}>
+              <span className="text-[12px] text-text-muted">{s.label}</span>
+              <span className={`text-[22px] font-bold font-feature ${s.color}`}>{s.value}</span>
+            </div>
           ))}
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Search size={36} className="mb-3" style={{ color:"var(--border)" }}/>
-          <p className="font-medium" style={{ color:"var(--text-secondary)" }}>No students found</p>
-          <p className="text-sm mt-1" style={{ color:"var(--text-muted)" }}>
-            {search ? "Try adjusting your search" : "No students match this filter"}
-          </p>
-          <button onClick={() => { setSearch(""); setFilter("all"); }}
-            className="mt-4 px-4 py-2 rounded-xl text-sm btn-secondary">
-            Reset filters
-          </button>
-        </div>
-      )}
 
-      <AnimatePresence>
-        {selected && (
-          <StudentDetailModal student={selected} onClose={() => setSelected(null)}/>
-        )}
-      </AnimatePresence>
-    </DashboardLayout>
+        {/* Main layout */}
+        <div className="grid grid-cols-4 gap-4">
+          {/* Student grid */}
+          <div className="col-span-3 space-y-3">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-2 border border-white/5">
+                {["all", "safe", "warning", "violation"].map((f) => (
+                  <button key={f} onClick={() => setRiskFilter(f)}
+                    className={`px-3 py-1 rounded-md text-[11.5px] font-medium capitalize transition-all ${
+                      riskFilter === f
+                        ? f === "violation" ? "bg-danger text-white" : f === "warning" ? "bg-warning text-black" : f === "safe" ? "bg-success text-black" : "bg-primary text-white"
+                        : "text-text-muted hover:text-text-secondary"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-2 border border-white/5">
+                <button onClick={() => setView("grid")} className={`icon-btn w-7 h-7 ${view === "grid" ? "bg-primary/20 text-primary" : ""}`}>
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setView("list")} className={`icon-btn w-7 h-7 ${view === "list" ? "bg-primary/20 text-primary" : ""}`}>
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <AnimatePresence mode="sync">
+              <div className={view === "grid" ? "grid grid-cols-2 xl:grid-cols-3 gap-3" : "space-y-2"}>
+                {filtered.map((student) => (
+                  <StudentCard
+                    key={student.id} student={student}
+                    onView={setDetailStudent}
+                    onWarn={setWarnStudent}
+                    onEnd={() => {}}
+                  />
+                ))}
+              </div>
+            </AnimatePresence>
+          </div>
+
+          {/* Right panel */}
+          <div className="col-span-1 space-y-4">
+            {/* Panel tabs */}
+            <div className="card overflow-hidden">
+              <div className="flex border-b border-white/5">
+                {(["violations", "alerts", "timeline"] as const).map((tab) => (
+                  <button key={tab} onClick={() => setActivePanel(tab)}
+                    className={`flex-1 py-2.5 text-[11px] font-medium capitalize transition-colors relative ${
+                      activePanel === tab ? "text-primary" : "text-text-muted hover:text-text-secondary"
+                    }`}
+                  >
+                    {tab}
+                    {activePanel === tab && (
+                      <motion.div layoutId="inv-tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="p-3 max-h-96 overflow-y-auto no-scrollbar">
+                {activePanel === "violations" && (
+                  <div className="space-y-2">
+                    {MOCK_VIOLATIONS.slice(0, 12).map((v) => (
+                      <div key={v.id} className={`p-2.5 rounded-xl border ${
+                        v.severity === "critical" ? "bg-danger/5 border-danger/15" : "bg-warning/5 border-warning/10"
+                      }`}>
+                        <div className="flex items-start justify-between gap-1 mb-0.5">
+                          <p className="text-[12px] font-semibold text-text-primary truncate">{v.studentName}</p>
+                          <span className="text-[10.5px] text-text-muted shrink-0">{v.time}</span>
+                        </div>
+                        <p className="text-[11px] text-text-muted">{v.type}</p>
+                        {v.detail && <p className="text-[10.5px] text-text-muted/70 mt-0.5">{v.detail}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {activePanel === "alerts" && (
+                  <div className="space-y-2">
+                    {MOCK_AI_ALERTS.slice(0, 6).map((alert) => (
+                      <div key={alert.id} className={`p-2.5 rounded-xl border ${alert.acknowledged ? "bg-surface-2/30 border-white/5" : "bg-danger/5 border-danger/15"}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[12px] font-semibold text-text-primary">{alert.studentName}</p>
+                          <span className="text-[10.5px] text-text-muted">{alert.confidence}%</span>
+                        </div>
+                        <p className="text-[11px] text-text-muted line-clamp-2">{alert.message}</p>
+                        <div className="flex items-center justify-between mt-1.5">
+                          <span className="text-[10px] text-text-muted/60">{alert.time}</span>
+                          <Badge variant={alert.acknowledged ? "success" : "danger"} size="sm">
+                            {alert.acknowledged ? "Done" : "Open"}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {activePanel === "timeline" && (
+                  <div className="space-y-0">
+                    {MOCK_TIMELINE.slice(0, 8).map((event, i) => (
+                      <div key={event.id} className="flex gap-2.5 pb-3 relative">
+                        {i < 7 && <div className="absolute left-3 top-5 bottom-0 w-px bg-white/5" />}
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 text-[9px] font-bold border ${
+                          event.type === "warning" ? "bg-danger/10 border-danger/25 text-danger" :
+                          event.type === "success" ? "bg-success/10 border-success/25 text-success" :
+                          "bg-primary/10 border-primary/25 text-primary"
+                        }`}>
+                          {event.type === "warning" ? "!" : event.type === "success" ? "✓" : "i"}
+                        </div>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="text-[11.5px] font-medium text-text-primary leading-tight">{event.title}</p>
+                            <span className="text-[10px] text-text-muted shrink-0">{event.time}</span>
+                          </div>
+                          <p className="text-[10.5px] text-text-muted mt-0.5 leading-snug">{event.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Risk chart */}
+            <div className="card p-4">
+              <p className="text-[12px] font-semibold text-text-primary mb-3">Risk Over Time</p>
+              <AreaChart data={RISK_OVER_TIME} color={CHART_COLORS.warning} height={100} showGrid={false} />
+            </div>
+
+            {/* High-risk roster */}
+            <div className="card p-4">
+              <p className="text-[12px] font-semibold text-text-primary mb-3">High Risk Students</p>
+              <div className="space-y-2">
+                {students
+                  .filter((s) => s.risk >= 60)
+                  .sort((a, b) => b.risk - a.risk)
+                  .slice(0, 5)
+                  .map((s) => {
+                    const risk = getRiskInfo(s.risk);
+                    return (
+                      <div key={s.id} className="flex items-center gap-2">
+                        <Avatar name={s.name} size="xs" online={s.isOnline} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11.5px] font-medium text-text-primary truncate">{s.name}</p>
+                          <div className="w-full bg-surface-3 rounded-full h-1 mt-0.5">
+                            <div className={`h-1 rounded-full ${risk.barClass}`} style={{ width: `${s.risk}%` }} />
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-semibold font-feature shrink-0" style={{ color: risk.color }}>{s.risk}%</span>
+                        <button onClick={() => setWarnStudent(s)} className="icon-btn w-6 h-6 shrink-0">
+                          <Volume2 className="w-3 h-3 text-warning" />
+                        </button>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {warnStudent    && <WarnModal   student={warnStudent}    onClose={() => setWarnStudent(null)}    />}
+    </AppShell>
   );
 }

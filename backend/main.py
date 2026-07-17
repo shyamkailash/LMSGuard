@@ -50,6 +50,14 @@ from exam_access import (
     get_exam_students,
     submit_code
 )
+from seb_integration import (
+    init_seb_integration_tables,
+    save_seb_exam_config,
+    get_seb_exam_config,
+    update_agent_heartbeat,
+    get_agent_status as _get_agent_status,
+    get_gateway_status,
+)
 from pydantic import BaseModel
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -63,6 +71,7 @@ init_db()
 seed_demo_data()
 init_security_controls()
 init_exam_access_tables()
+init_seb_integration_tables()
 
 # Seed ORM demo data (users, academic structure) if DB is empty
 with SessionLocal() as _seed_db:
@@ -397,6 +406,66 @@ class HeartbeatRequest(BaseModel):
 def api_student_heartbeat(req: HeartbeatRequest):
     student_heartbeat(req.student_id, req.roll_number, req.exam_id)
     return {"success": True}
+
+
+# ── SEB / Gateway integration APIs ───────────────────────────────────────────
+
+
+class SebExamConfigRequest(BaseModel):
+    exam_id: str
+    exam_name: str | None = None
+    class_id: str | None = None
+    moodle_quiz_url: str
+    seb_required: int | None = 1
+    created_by: str | None = None
+    created_by_role: str | None = None
+
+
+@app.post("/api/seb/exam/config")
+def api_save_seb_exam_config(req: SebExamConfigRequest, _: dict = Depends(require_role("admin", "invigilator"))):
+    data = req.model_dump()
+    row = save_seb_exam_config(data)
+    return {"success": True, "config": row}
+
+
+@app.get("/api/seb/exam/config/{exam_id}")
+def api_get_seb_exam_config(exam_id: str, _: dict = Depends(require_role("admin", "invigilator"))):
+    cfg = get_seb_exam_config(exam_id)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="SEB config not found")
+    return cfg
+
+
+class AgentHeartbeatRequest(BaseModel):
+    exam_id: str
+    roll_number: str
+    student_id: str | None = None
+    student_name: str | None = None
+    agent_status: str | None = None
+    seb_detected: int | None = 0
+    active_window: str | None = None
+    network_status: str | None = None
+
+
+@app.post("/api/agent/heartbeat")
+def api_agent_heartbeat(req: AgentHeartbeatRequest):
+    # Agent heartbeats are allowed unauthenticated (agents run on student machines)
+    row = update_agent_heartbeat(req.model_dump())
+    return {"success": True, "session": row}
+
+
+@app.get("/api/agent/status/{exam_id}/{roll_number}")
+def api_agent_status(exam_id: str, roll_number: str, _: dict = Depends(require_auth)):
+    s = _get_agent_status(exam_id, roll_number)
+    if not s:
+        raise HTTPException(status_code=404, detail="Agent session not found")
+    return s
+
+
+@app.get("/api/seb/gateway/status/{exam_id}/{roll_number}")
+def api_seb_gateway_status(exam_id: str, roll_number: str, _: dict = Depends(require_auth)):
+    status = get_gateway_status(exam_id, roll_number)
+    return status
 
 @app.get("/api/exam/dashboard-summary/{exam_id}")
 def api_exam_dashboard_summary(exam_id: str):

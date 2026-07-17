@@ -3,16 +3,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Monitor, AlertTriangle, BarChart3,
-  Settings, ChevronLeft, ChevronRight, LogOut, Shield, Zap
+  LayoutDashboard, Monitor, BarChart3,
+  ChevronLeft, ChevronRight, LogOut, Shield, Zap, BookOpen
 } from "lucide-react";
 
 const NAV = [
-  { label:"Dashboard",  href:"/dashboard",  icon:LayoutDashboard },
-  { label:"Monitoring", href:"/monitoring", icon:Monitor         },
-  { label:"Violations", href:"/violations", icon:AlertTriangle   },
-  { label:"Reports",    href:"/reports",    icon:BarChart3       },
-  { label:"Settings",   href:"/settings",   icon:Settings        },
+  { label:"Dashboard",  href:"/teacher/dashboard",  icon:LayoutDashboard },
+  { label:"Exams",      href:"/teacher/exams",     icon:BookOpen        },
+  { label:"Monitoring", href:"/teacher/monitoring", icon:Monitor        },
+  { label:"Reports",    href:"/teacher/reports",    icon:BarChart3       },
 ];
 
 export default function Sidebar({

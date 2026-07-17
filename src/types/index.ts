@@ -96,6 +96,45 @@ export interface AvailableClass {
   roomNo?: string;
 }
 
+// ── Subject ──────────────────────────────────────────────────────────────────
+
+export interface Subject {
+  id: string;
+  code: string;
+  name: string;
+  dept: string;
+  deptCode: string;
+  semester: number;
+  credits: number;
+  faculty: string;
+  facultyEmail?: string;
+  type: "Theory" | "Lab" | "Project";
+  status: "active" | "inactive";
+  description?: string;
+  syllabus?: string;
+}
+
+// ── Assignment ───────────────────────────────────────────────────────────────
+
+export interface ExamAssignment {
+  id: string;
+  examId: string;
+  examTitle: string;
+  subject: string;
+  dept: string;
+  deptCode: string;
+  classes: string[];
+  totalStudents: number;
+  invigilators: string[];
+  date: string;
+  startTime: string;
+  duration: number;
+  roomNo?: string;
+  status: "pending" | "assigned" | "confirmed" | "cancelled";
+  assignedAt?: string;
+  assignedBy?: string;
+}
+
 // ── Student ──────────────────────────────────────────────────────────────────
 
 export interface AdminStudent {

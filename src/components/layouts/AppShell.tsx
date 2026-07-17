@@ -1,7 +1,7 @@
 "use client";
 import { Sidebar } from "./Sidebar";
-import { Topbar } from "./Topbar";
-import { motion } from "framer-motion";
+import { Topbar }  from "./Topbar";
+import { motion }  from "framer-motion";
 import type { ReactNode } from "react";
 
 interface AppShellProps {
@@ -18,9 +18,9 @@ export function AppShell({ children, variant = "admin" }: AppShellProps) {
         <main className="flex-1 overflow-y-auto">
           <motion.div
             className="h-full"
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
           >
             {children}
           </motion.div>

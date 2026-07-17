@@ -48,9 +48,12 @@ function startMock(assignedClass: string): void {
   activeClass = assignedClass;
   if (typeof window === "undefined") return;
 
-  import("@/data/invigilatorData").then(({ CLASS_STUDENTS, CLASS_VIOLATIONS }) => {
-    const students   = (CLASS_STUDENTS   as unknown as Record<string, MonitoringStudent[]>)[activeClass]   || [];
-    const violations = (CLASS_VIOLATIONS as unknown as Record<string, ViolationRecord[]>)[activeClass]     || [];
+  Promise.all([
+    import("@/mock/students"),
+    import("@/mock/violations")
+  ]).then(([{ CLASS_STUDENTS }, { CLASS_VIOLATIONS }]) => {
+    const students   = CLASS_STUDENTS[activeClass]   || [];
+    const violations = CLASS_VIOLATIONS[activeClass] || [];
 
     setTimeout(() => {
       emit("student_status",  { students, assignedClass: activeClass });

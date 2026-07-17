@@ -1,205 +1,129 @@
-import type { InvigilatorProfile, AvailableClass, AvailableExam, AdminAccount, Department, SchoolClass, AdminStudent, AdminInvigilator, AdminExam, MonitoringSession, SystemStats } from "@/types";
 /**
- * LMSGuard AI — Invigilator Data
- *
- * Invigilators are NOT pre-assigned to a class.
- * They dynamically choose a class and exam after login each session.
+ * LMSGuard V2 — Invigilator Portal Mock Data
  */
+import type { MonitoringStudent, ViolationRecord } from "@/types";
 
-// ─── Invigilator Profiles ─────────────────────────────────────────────────────
-export const INVIGILATORS : InvigilatorProfile[] = [
-  { id:"INV001", name:"John Martin",   email:"john.martin@college.edu",   avatar:"JM", department:"Computer Science" },
-  { id:"INV002", name:"Sarah Thomas",  email:"sarah.thomas@college.edu",  avatar:"ST", department:"Computer Science" },
-  { id:"INV003", name:"Ravi Sharma",   email:"ravi.sharma@college.edu",   avatar:"RS", department:"Electronics"      },
-  { id:"INV004", name:"Priya Nair",    email:"priya.nair@college.edu",    avatar:"PN", department:"Information Tech" },
-];
-
-/** Resolve invigilator profile by email — defaults to INV001 for demo */
-export function getInvigilatorByEmail(email: string): InvigilatorProfile {
-  return (
-    INVIGILATORS.find(inv => inv.email.toLowerCase() === email.toLowerCase()) ??
-    INVIGILATORS[0]
-  );
+export interface WaitingStudent {
+  id: string;
+  name: string;
+  regno: string;
+  dept: string;
+  class: string;
+  avatar: string;
+  connectionStatus: "connected" | "weak" | "disconnected";
+  permissionStatus: "waiting" | "approved" | "rejected";
+  joinedAt: string;
+  ipAddress: string;
+  device: string;
+  faceVerified: boolean;
+  risk: number;
 }
 
-// ─── Available Classes ────────────────────────────────────────────────────────
-export const AVAILABLE_CLASSES : AvailableClass[] = [
-  { id:"CSE-3A", label:"CSE – 3rd Year A", dept:"Computer Science",  year:"3rd Year", section:"A", strength:20 },
-  { id:"CSE-3B", label:"CSE – 3rd Year B", dept:"Computer Science",  year:"3rd Year", section:"B", strength:8  },
-  { id:"ECE-3A", label:"ECE – 3rd Year A", dept:"Electronics",       year:"3rd Year", section:"A", strength:10 },
-  { id:"IT-2A",  label:"IT – 2nd Year A",  dept:"Information Tech",  year:"2nd Year", section:"A", strength:10 },
-];
-
-// ─── Available Exams ─────────────────────────────────────────────────────────
-export const AVAILABLE_EXAMS : AvailableExam[] = [
-  {
-    id:"EX001", title:"DBMS Final Exam",         subject:"Database Management Systems",
-    code:"CS501", date:"30-06-2026", startTime:"10:00 AM", endTime:"11:00 AM",
-    duration:60, totalQuestions:50, totalMarks:100, passingMarks:40,
-    eligibleClasses:["CSE-3A","CSE-3B"],
-  },
-  {
-    id:"EX002", title:"Java Programming Test",   subject:"Object Oriented Programming",
-    code:"CS401", date:"30-06-2026", startTime:"02:00 PM", endTime:"02:45 PM",
-    duration:45, totalQuestions:30, totalMarks:60, passingMarks:24,
-    eligibleClasses:["CSE-3A","CSE-3B"],
-  },
-  {
-    id:"EX003", title:"Data Structures Test",    subject:"Data Structures & Algorithms",
-    code:"CS301", date:"01-07-2026", startTime:"09:00 AM", endTime:"10:00 AM",
-    duration:60, totalQuestions:40, totalMarks:80, passingMarks:32,
-    eligibleClasses:["CSE-3A","CSE-3B","IT-2A"],
-  },
-  {
-    id:"EX004", title:"Digital Circuits Exam",   subject:"Digital Electronics",
-    code:"EC401", date:"30-06-2026", startTime:"11:00 AM", endTime:"12:00 PM",
-    duration:60, totalQuestions:50, totalMarks:100, passingMarks:40,
-    eligibleClasses:["ECE-3A"],
-  },
-  {
-    id:"EX005", title:"Web Technologies Test",   subject:"Web Development",
-    code:"IT301", date:"01-07-2026", startTime:"02:00 PM", endTime:"02:45 PM",
-    duration:45, totalQuestions:30, totalMarks:60, passingMarks:24,
-    eligibleClasses:["IT-2A","CSE-3B"],
-  },
-];
-
-/** Returns exams available for a given class */
-export function getExamsForClass(classId: string): AvailableExam[] {
-  return AVAILABLE_EXAMS.filter(e => e.eligibleClasses.includes(classId));
+export interface SessionInfo {
+  id: string;
+  token: string;
+  examId: string;
+  examTitle: string;
+  classId: string;
+  classLabel: string;
+  passcode: string;
+  invigilator: string;
+  startedAt: string;
+  duration: number;
+  totalStudents: number;
+  approved: number;
+  waiting: number;
+  blocked: number;
+  status: "waiting" | "active" | "paused" | "ended";
 }
 
-// ─── Class → Students ─────────────────────────────────────────────────────────
-export const CLASS_STUDENTS = {
-  "CSE-3A": [
-    { id:"S101", name:"Rahul Kumar",    regno:"22CS101", avatar:"RK", risk:10,  status:"safe",      violations:[] },
-    { id:"S102", name:"Arjun Mehta",    regno:"22CS102", avatar:"AM", risk:88,  status:"violation",
-      violations:[
-        { time:"10:30", type:"Browser Switch",     detail:"Chrome tab changed",   severity:"medium"   },
-        { time:"10:40", type:"Application Switch", detail:"VS Code opened",        severity:"critical" },
-      ]},
-    { id:"S103", name:"Priya Sharma",   regno:"22CS103", avatar:"PS", risk:35,  status:"warning",
-      violations:[{ time:"10:45", type:"Browser Switch", detail:"New tab opened", severity:"medium" }]},
-    { id:"S104", name:"Karthik Rajan",  regno:"22CS104", avatar:"KR", risk:62,  status:"warning",
-      violations:[{ time:"10:42", type:"Multiple Faces", detail:"2nd person detected", severity:"critical" }]},
-    { id:"S105", name:"Deepa Nair",     regno:"22CS105", avatar:"DN", risk:5,   status:"safe",      violations:[] },
-    { id:"S106", name:"Vikram Singh",   regno:"22CS106", avatar:"VS", risk:91,  status:"violation",
-      violations:[
-        { time:"10:35", type:"Unknown App",     detail:"Terminal opened",     severity:"critical" },
-        { time:"10:50", type:"Idle Detected",   detail:"No activity 5 mins",  severity:"warning"  },
-      ]},
-    { id:"S107", name:"Anjali Gupta",   regno:"22CS107", avatar:"AG", risk:22,  status:"safe",      violations:[] },
-    { id:"S108", name:"Rohit Verma",    regno:"22CS108", avatar:"RV", risk:48,  status:"warning",
-      violations:[{ time:"10:47", type:"Copy/Paste", detail:"Clipboard activity", severity:"medium" }]},
-    { id:"S109", name:"Sneha Reddy",    regno:"22CS109", avatar:"SR", risk:15,  status:"safe",      violations:[] },
-    { id:"S110", name:"Aditya Roy",     regno:"22CS110", avatar:"AR", risk:74,  status:"violation",
-      violations:[{ time:"10:40", type:"Screen Capture", detail:"Screenshot attempt", severity:"critical" }]},
-    { id:"S111", name:"Meera Iyer",     regno:"22CS111", avatar:"MI", risk:28,  status:"safe",      violations:[] },
-    { id:"S112", name:"Nikhil Joshi",   regno:"22CS112", avatar:"NJ", risk:55,  status:"warning",
-      violations:[{ time:"10:50", type:"Idle Detected", detail:"Mouse inactive 3 min", severity:"warning" }]},
-    { id:"S113", name:"Kavya Menon",    regno:"22CS113", avatar:"KM", risk:8,   status:"safe",      violations:[] },
-    { id:"S114", name:"Suresh Babu",    regno:"22CS114", avatar:"SB", risk:40,  status:"warning",
-      violations:[{ time:"10:55", type:"Browser Switch", detail:"New window opened", severity:"medium" }]},
-    { id:"S115", name:"Lakshmi Devi",   regno:"22CS115", avatar:"LD", risk:12,  status:"safe",      violations:[] },
-    { id:"S116", name:"Harish Kumar",   regno:"22CS116", avatar:"HK", risk:80,  status:"violation",
-      violations:[{ time:"10:22", type:"App Switch", detail:"Discord opened", severity:"critical" }]},
-    { id:"S117", name:"Divya Krishnan", regno:"22CS117", avatar:"DK", risk:18,  status:"safe",      violations:[] },
-    { id:"S118", name:"Ravi Shankar",   regno:"22CS118", avatar:"RS", risk:33,  status:"safe",      violations:[] },
-    { id:"S119", name:"Pooja Patel",    regno:"22CS119", avatar:"PP", risk:65,  status:"warning",
-      violations:[{ time:"10:48", type:"Multiple Faces", detail:"Person in background", severity:"warning" }]},
-    { id:"S120", name:"Siddharth Das",  regno:"22CS120", avatar:"SD", risk:45,  status:"warning",
-      violations:[{ time:"10:52", type:"Copy/Paste", detail:"Clipboard activity", severity:"medium" }]},
-  ],
-  "CSE-3B": [
-    { id:"S201", name:"Ananya Sharma",  regno:"22CS201", avatar:"AS", risk:20,  status:"safe",      violations:[] },
-    { id:"S202", name:"Rahul Verma",    regno:"22CS202", avatar:"RV", risk:75,  status:"violation",
-      violations:[{ time:"14:12", type:"Browser Switch", detail:"Chrome tab changed", severity:"medium" }]},
-    { id:"S203", name:"Priyanka Das",   regno:"22CS203", avatar:"PD", risk:30,  status:"safe",      violations:[] },
-    { id:"S204", name:"Arun Kumar",     regno:"22CS204", avatar:"AK", risk:55,  status:"warning",
-      violations:[{ time:"14:20", type:"Idle Detected", detail:"No activity 3 min", severity:"warning" }]},
-    { id:"S205", name:"Nisha Gupta",    regno:"22CS205", avatar:"NG", risk:10,  status:"safe",      violations:[] },
-    { id:"S206", name:"Kiran Reddy",    regno:"22CS206", avatar:"KR", risk:85,  status:"violation",
-      violations:[{ time:"14:15", type:"App Switch", detail:"VS Code opened", severity:"critical" }]},
-    { id:"S207", name:"Mohan Singh",    regno:"22CS207", avatar:"MS", risk:25,  status:"safe",      violations:[] },
-    { id:"S208", name:"Sunita Rao",     regno:"22CS208", avatar:"SR", risk:42,  status:"warning",
-      violations:[{ time:"14:30", type:"Copy/Paste", detail:"Clipboard activity", severity:"medium" }]},
-  ],
-  "ECE-3A": [
-    { id:"S301", name:"Nandini Pillai", regno:"22EC301", avatar:"NP", risk:12,  status:"safe",      violations:[] },
-    { id:"S302", name:"Sunil Babu",     regno:"22EC302", avatar:"SB", risk:70,  status:"violation",
-      violations:[{ time:"11:10", type:"Browser Switch", detail:"YouTube opened", severity:"critical" }]},
-    { id:"S303", name:"Rekha Menon",    regno:"22EC303", avatar:"RM", risk:25,  status:"safe",      violations:[] },
-    { id:"S304", name:"Ajay Nair",      regno:"22EC304", avatar:"AN", risk:50,  status:"warning",
-      violations:[{ time:"11:20", type:"Idle Detected", detail:"No activity 4 min", severity:"warning" }]},
-    { id:"S305", name:"Dhanya Raj",     regno:"22EC305", avatar:"DR", risk:8,   status:"safe",      violations:[] },
-    { id:"S306", name:"Pramod Kumar",   regno:"22EC306", avatar:"PK", risk:88,  status:"violation",
-      violations:[{ time:"11:15", type:"App Switch", detail:"VS Code opened", severity:"critical" }]},
-    { id:"S307", name:"Lekshmi G",      regno:"22EC307", avatar:"LG", risk:30,  status:"safe",      violations:[] },
-    { id:"S308", name:"Vishnu Dev",     regno:"22EC308", avatar:"VD", risk:45,  status:"warning",
-      violations:[{ time:"11:30", type:"Copy/Paste", detail:"Clipboard activity", severity:"medium" }]},
-    { id:"S309", name:"Athira S",       regno:"22EC309", avatar:"AS", risk:15,  status:"safe",      violations:[] },
-    { id:"S310", name:"Bibin Thomas",   regno:"22EC310", avatar:"BT", risk:60,  status:"warning",
-      violations:[{ time:"11:35", type:"Multiple Faces", detail:"Person detected", severity:"critical" }]},
-  ],
-  "IT-2A": [
-    { id:"S401", name:"Amrita Singh",   regno:"22IT401", avatar:"AS", risk:18,  status:"safe",      violations:[] },
-    { id:"S402", name:"Rohan Kapoor",   regno:"22IT402", avatar:"RK", risk:65,  status:"warning",
-      violations:[{ time:"14:05", type:"Browser Switch", detail:"New tab opened", severity:"medium" }]},
-    { id:"S403", name:"Tanvi Shah",     regno:"22IT403", avatar:"TS", risk:10,  status:"safe",      violations:[] },
-    { id:"S404", name:"Karan Mehta",    regno:"22IT404", avatar:"KM", risk:82,  status:"violation",
-      violations:[{ time:"14:10", type:"App Switch", detail:"VS Code opened", severity:"critical" }]},
-    { id:"S405", name:"Simran Kaur",    regno:"22IT405", avatar:"SK", risk:22,  status:"safe",      violations:[] },
-    { id:"S406", name:"Aryan Gupta",    regno:"22IT406", avatar:"AG", risk:48,  status:"warning",
-      violations:[{ time:"14:15", type:"Idle Detected", detail:"No activity 4 min", severity:"warning" }]},
-    { id:"S407", name:"Naina Joshi",    regno:"22IT407", avatar:"NJ", risk:5,   status:"safe",      violations:[] },
-    { id:"S408", name:"Saurav Das",     regno:"22IT408", avatar:"SD", risk:72,  status:"violation",
-      violations:[{ time:"14:20", type:"Screen Capture", detail:"Screenshot attempt", severity:"critical" }]},
-    { id:"S409", name:"Ishita Roy",     regno:"22IT409", avatar:"IR", risk:35,  status:"warning",
-      violations:[{ time:"14:22", type:"Copy/Paste", detail:"Clipboard activity", severity:"medium" }]},
-    { id:"S410", name:"Manav Sethi",    regno:"22IT410", avatar:"MS", risk:14,  status:"safe",      violations:[] },
-  ],
-};
+export interface SessionAlert {
+  id: string;
+  studentId: string;
+  studentName: string;
+  regno: string;
+  type: "clipboard" | "network" | "idle" | "application" | "tab_switch" | "face" | "screen";
+  detail: string;
+  severity: "low" | "medium" | "high" | "critical";
+  time: string;
+  timestamp: number;
+  acknowledged: boolean;
+  risk: number;
+}
 
-// ─── Class → Violations ───────────────────────────────────────────────────────
-export const CLASS_VIOLATIONS = {
-  "CSE-3A": [
-    { id:"V001", studentId:"S102", studentName:"Arjun Mehta",   regno:"22CS102", type:"Application Switch", detail:"VS Code Opened",       severity:"critical", time:"10:40", timestamp:Date.now()-420000 },
-    { id:"V002", studentId:"S101", studentName:"Rahul Kumar",   regno:"22CS101", type:"Browser Switch",     detail:"Chrome tab changed",   severity:"medium",   time:"10:30", timestamp:Date.now()-600000 },
-    { id:"V003", studentId:"S106", studentName:"Vikram Singh",  regno:"22CS106", type:"Unknown App",        detail:"Terminal opened",       severity:"critical", time:"10:35", timestamp:Date.now()-540000 },
-    { id:"V004", studentId:"S104", studentName:"Karthik Rajan", regno:"22CS104", type:"Multiple Faces",     detail:"2nd person detected",  severity:"critical", time:"10:42", timestamp:Date.now()-360000 },
-    { id:"V005", studentId:"S103", studentName:"Priya Sharma",  regno:"22CS103", type:"Browser Switch",     detail:"New tab opened",       severity:"medium",   time:"10:45", timestamp:Date.now()-300000 },
-    { id:"V006", studentId:"S108", studentName:"Rohit Verma",   regno:"22CS108", type:"Copy/Paste",         detail:"Clipboard activity",   severity:"medium",   time:"10:47", timestamp:Date.now()-180000 },
-    { id:"V007", studentId:"S110", studentName:"Aditya Roy",    regno:"22CS110", type:"Screen Capture",     detail:"Screenshot attempt",   severity:"critical", time:"10:40", timestamp:Date.now()-360000 },
-    { id:"V008", studentId:"S116", studentName:"Harish Kumar",  regno:"22CS116", type:"App Switch",         detail:"Discord opened",       severity:"critical", time:"10:22", timestamp:Date.now()-720000 },
-  ],
-  "CSE-3B": [
-    { id:"V201", studentId:"S202", studentName:"Rahul Verma",   regno:"22CS202", type:"Browser Switch",     detail:"Chrome tab changed",   severity:"medium",   time:"14:12", timestamp:Date.now()-480000 },
-    { id:"V202", studentId:"S206", studentName:"Kiran Reddy",   regno:"22CS206", type:"App Switch",         detail:"VS Code opened",       severity:"critical", time:"14:15", timestamp:Date.now()-420000 },
-    { id:"V203", studentId:"S204", studentName:"Arun Kumar",    regno:"22CS204", type:"Idle Detected",      detail:"No activity 3 min",    severity:"warning",  time:"14:20", timestamp:Date.now()-360000 },
-    { id:"V204", studentId:"S208", studentName:"Sunita Rao",    regno:"22CS208", type:"Copy/Paste",         detail:"Clipboard activity",   severity:"medium",   time:"14:30", timestamp:Date.now()-180000 },
-  ],
-  "ECE-3A": [
-    { id:"V301", studentId:"S302", studentName:"Sunil Babu",    regno:"22EC302", type:"Browser Switch",     detail:"YouTube opened",       severity:"critical", time:"11:10", timestamp:Date.now()-600000 },
-    { id:"V302", studentId:"S306", studentName:"Pramod Kumar",  regno:"22EC306", type:"App Switch",         detail:"VS Code opened",       severity:"critical", time:"11:15", timestamp:Date.now()-540000 },
-    { id:"V303", studentId:"S304", studentName:"Ajay Nair",     regno:"22EC304", type:"Idle Detected",      detail:"No activity 4 min",    severity:"warning",  time:"11:20", timestamp:Date.now()-420000 },
-    { id:"V304", studentId:"S310", studentName:"Bibin Thomas",  regno:"22EC310", type:"Multiple Faces",     detail:"Person detected",      severity:"critical", time:"11:35", timestamp:Date.now()-240000 },
-  ],
-  "IT-2A": [
-    { id:"V401", studentId:"S404", studentName:"Karan Mehta",   regno:"22IT404", type:"App Switch",         detail:"VS Code opened",       severity:"critical", time:"14:10", timestamp:Date.now()-540000 },
-    { id:"V402", studentId:"S402", studentName:"Rohan Kapoor",  regno:"22IT402", type:"Browser Switch",     detail:"New tab opened",       severity:"medium",   time:"14:05", timestamp:Date.now()-600000 },
-    { id:"V403", studentId:"S406", studentName:"Aryan Gupta",   regno:"22IT406", type:"Idle Detected",      detail:"No activity 4 min",    severity:"warning",  time:"14:15", timestamp:Date.now()-480000 },
-    { id:"V404", studentId:"S408", studentName:"Saurav Das",    regno:"22IT408", type:"Screen Capture",     detail:"Screenshot attempt",   severity:"critical", time:"14:20", timestamp:Date.now()-360000 },
-  ],
-};
-
-// ─── Live event pool (for mock websocket) ─────────────────────────────────────
-export const LIVE_EVENT_POOL = [
-  { type:"Browser Switch",      detail:"Chrome tab changed",       severity:"medium"   },
-  { type:"Application Switch",  detail:"VS Code opened",           severity:"critical" },
-  { type:"Idle Detected",       detail:"No activity for 5 mins",   severity:"medium"   },
-  { type:"Multiple Faces",      detail:"Secondary person detected",severity:"critical" },
-  { type:"Copy/Paste",          detail:"Clipboard activity",       severity:"medium"   },
-  { type:"Unknown App",         detail:"Terminal opened",          severity:"critical" },
-  { type:"Screen Capture",      detail:"Screenshot attempt",       severity:"critical" },
-  { type:"Audio Detected",      detail:"Microphone activity",      severity:"low"      },
+/* ── Waiting Students ─────────────────────────────── */
+export const MOCK_WAITING_STUDENTS: WaitingStudent[] = [
+  { id:"S101", name:"Rahul Kumar",    regno:"22CS101", dept:"CSE", class:"CSE-3A", avatar:"RK", connectionStatus:"connected",    permissionStatus:"approved",  joinedAt:"10:02 AM", ipAddress:"192.168.1.101", device:"Chrome 124 · Windows",  faceVerified:true,  risk:10 },
+  { id:"S102", name:"Arjun Mehta",    regno:"22CS102", dept:"CSE", class:"CSE-3A", avatar:"AM", connectionStatus:"connected",    permissionStatus:"approved",  joinedAt:"10:01 AM", ipAddress:"192.168.1.102", device:"Chrome 124 · Windows",  faceVerified:true,  risk:88 },
+  { id:"S103", name:"Priya Sharma",   regno:"22CS103", dept:"CSE", class:"CSE-3A", avatar:"PS", connectionStatus:"weak",         permissionStatus:"approved",  joinedAt:"10:03 AM", ipAddress:"192.168.1.103", device:"Edge 122 · Windows",    faceVerified:true,  risk:35 },
+  { id:"S104", name:"Karthik Rajan",  regno:"22CS104", dept:"CSE", class:"CSE-3A", avatar:"KR", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:04 AM", ipAddress:"192.168.1.104", device:"Chrome 124 · macOS",    faceVerified:false, risk:12 },
+  { id:"S105", name:"Deepa Nair",     regno:"22CS105", dept:"CSE", class:"CSE-3A", avatar:"DN", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:05 AM", ipAddress:"192.168.1.105", device:"Chrome 124 · Linux",    faceVerified:true,  risk:5  },
+  { id:"S106", name:"Vikram Singh",   regno:"22CS106", dept:"CSE", class:"CSE-3A", avatar:"VS", connectionStatus:"connected",    permissionStatus:"approved",  joinedAt:"10:01 AM", ipAddress:"192.168.1.106", device:"Firefox 125 · Windows", faceVerified:true,  risk:91 },
+  { id:"S107", name:"Anjali Gupta",   regno:"22CS107", dept:"CSE", class:"CSE-3A", avatar:"AG", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:06 AM", ipAddress:"192.168.1.107", device:"Chrome 124 · Windows",  faceVerified:true,  risk:22 },
+  { id:"S108", name:"Rohit Verma",    regno:"22CS108", dept:"CSE", class:"CSE-3A", avatar:"RV", connectionStatus:"connected",    permissionStatus:"approved",  joinedAt:"10:02 AM", ipAddress:"192.168.1.108", device:"Chrome 124 · Windows",  faceVerified:true,  risk:48 },
+  { id:"S109", name:"Sneha Reddy",    regno:"22CS109", dept:"CSE", class:"CSE-3A", avatar:"SR", connectionStatus:"disconnected", permissionStatus:"waiting",   joinedAt:"10:07 AM", ipAddress:"192.168.1.109", device:"Chrome 124 · Windows",  faceVerified:false, risk:0  },
+  { id:"S110", name:"Aditya Roy",     regno:"22CS110", dept:"CSE", class:"CSE-3A", avatar:"AR", connectionStatus:"connected",    permissionStatus:"rejected",  joinedAt:"10:03 AM", ipAddress:"192.168.1.110", device:"Safari 17 · macOS",     faceVerified:false, risk:74 },
+  { id:"S111", name:"Meera Iyer",     regno:"22CS111", dept:"CSE", class:"CSE-3A", avatar:"MI", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:08 AM", ipAddress:"192.168.1.111", device:"Chrome 124 · Windows",  faceVerified:true,  risk:28 },
+  { id:"S112", name:"Nikhil Joshi",   regno:"22CS112", dept:"CSE", class:"CSE-3A", avatar:"NJ", connectionStatus:"weak",         permissionStatus:"approved",  joinedAt:"10:04 AM", ipAddress:"192.168.1.112", device:"Edge 122 · Windows",    faceVerified:true,  risk:55 },
+  { id:"S113", name:"Kavya Menon",    regno:"22CS113", dept:"CSE", class:"CSE-3A", avatar:"KM", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:09 AM", ipAddress:"192.168.1.113", device:"Chrome 124 · macOS",    faceVerified:true,  risk:8  },
+  { id:"S114", name:"Suresh Babu",    regno:"22CS114", dept:"CSE", class:"CSE-3A", avatar:"SB", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:05 AM", ipAddress:"192.168.1.114", device:"Chrome 124 · Windows",  faceVerified:true,  risk:40 },
+  { id:"S115", name:"Lakshmi Devi",   regno:"22CS115", dept:"CSE", class:"CSE-3A", avatar:"LD", connectionStatus:"connected",    permissionStatus:"approved",  joinedAt:"10:01 AM", ipAddress:"192.168.1.115", device:"Firefox 125 · Windows", faceVerified:true,  risk:12 },
+  { id:"S116", name:"Harish Kumar",   regno:"22CS116", dept:"CSE", class:"CSE-3A", avatar:"HK", connectionStatus:"connected",    permissionStatus:"approved",  joinedAt:"10:02 AM", ipAddress:"192.168.1.116", device:"Chrome 124 · Windows",  faceVerified:true,  risk:80 },
+  { id:"S117", name:"Divya Krishnan", regno:"22CS117", dept:"CSE", class:"CSE-3A", avatar:"DK", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:10 AM", ipAddress:"192.168.1.117", device:"Chrome 124 · Linux",    faceVerified:true,  risk:18 },
+  { id:"S118", name:"Ravi Shankar",   regno:"22CS118", dept:"CSE", class:"CSE-3A", avatar:"RS", connectionStatus:"connected",    permissionStatus:"waiting",   joinedAt:"10:06 AM", ipAddress:"192.168.1.118", device:"Chrome 124 · Windows",  faceVerified:true,  risk:33 },
+  { id:"S119", name:"Pooja Patel",    regno:"22CS119", dept:"CSE", class:"CSE-3A", avatar:"PP", connectionStatus:"disconnected", permissionStatus:"waiting",   joinedAt:"10:11 AM", ipAddress:"192.168.1.119", device:"Chrome 124 · Windows",  faceVerified:false, risk:0  },
+  { id:"S120", name:"Siddharth Das",  regno:"22CS120", dept:"CSE", class:"CSE-3A", avatar:"SD", connectionStatus:"connected",    permissionStatus:"approved",  joinedAt:"10:03 AM", ipAddress:"192.168.1.120", device:"Chrome 124 · Windows",  faceVerified:true,  risk:45 },
 ];
+
+/* ── Session Info ──────────────────────────────────── */
+export const MOCK_SESSION_INFO: SessionInfo = {
+  id:           "SES001",
+  token:        "LMSG-2026-CSE3A-TKN8X",
+  examId:       "EX001",
+  examTitle:    "Database Management Systems — Final",
+  classId:      "CSE-3A",
+  classLabel:   "CSE – 3rd Year A",
+  passcode:     "DB2026",
+  invigilator:  "John Martin",
+  startedAt:    "10:00 AM",
+  duration:     60,
+  totalStudents: 20,
+  approved:     10,
+  waiting:      8,
+  blocked:      2,
+  status:       "active",
+};
+
+/* ── Session Alerts ────────────────────────────────── */
+export const MOCK_SESSION_ALERTS: SessionAlert[] = [
+  { id:"AL001", studentId:"S106", studentName:"Vikram Singh",   regno:"22CS106", type:"application", detail:"VS Code detected running in background",       severity:"critical", time:"10:35 AM", timestamp:Date.now()-1500000, acknowledged:false, risk:91 },
+  { id:"AL002", studentId:"S102", studentName:"Arjun Mehta",    regno:"22CS102", type:"application", detail:"Terminal opened alongside browser",             severity:"critical", time:"10:40 AM", timestamp:Date.now()-1200000, acknowledged:false, risk:88 },
+  { id:"AL003", studentId:"S104", studentName:"Karthik Rajan",  regno:"22CS104", type:"face",        detail:"Secondary person detected in camera frame",     severity:"critical", time:"10:42 AM", timestamp:Date.now()-1080000, acknowledged:false, risk:62 },
+  { id:"AL004", studentId:"S103", studentName:"Priya Sharma",   regno:"22CS103", type:"tab_switch",  detail:"Chrome tab changed 3 times in 5 minutes",       severity:"medium",   time:"10:45 AM", timestamp:Date.now()-900000,  acknowledged:false, risk:35 },
+  { id:"AL005", studentId:"S108", studentName:"Rohit Verma",    regno:"22CS108", type:"clipboard",   detail:"Clipboard access detected, content copied",     severity:"medium",   time:"10:47 AM", timestamp:Date.now()-780000,  acknowledged:true,  risk:48 },
+  { id:"AL006", studentId:"S116", studentName:"Harish Kumar",   regno:"22CS116", type:"application", detail:"Discord messaging app opened",                  severity:"critical", time:"10:22 AM", timestamp:Date.now()-2280000, acknowledged:true,  risk:80 },
+  { id:"AL007", studentId:"S112", studentName:"Nikhil Joshi",   regno:"22CS112", type:"idle",        detail:"No mouse or keyboard activity for 3 minutes",   severity:"medium",   time:"10:50 AM", timestamp:Date.now()-600000,  acknowledged:false, risk:55 },
+  { id:"AL008", studentId:"S110", studentName:"Aditya Roy",     regno:"22CS110", type:"screen",      detail:"Screenshot tool detected",                      severity:"critical", time:"10:40 AM", timestamp:Date.now()-1200000, acknowledged:true,  risk:74 },
+  { id:"AL009", studentId:"S119", studentName:"Pooja Patel",    regno:"22CS119", type:"network",     detail:"Internet connection lost for 2 minutes",         severity:"high",     time:"10:48 AM", timestamp:Date.now()-720000,  acknowledged:false, risk:65 },
+  { id:"AL010", studentId:"S120", studentName:"Siddharth Das",  regno:"22CS120", type:"clipboard",   detail:"Clipboard paste operation detected",             severity:"medium",   time:"10:52 AM", timestamp:Date.now()-480000,  acknowledged:false, risk:45 },
+];
+
+/* ── Re-export class/exam data for invigilator use ── */
+export {
+  CLASS_STUDENTS,
+} from "@/mock/students";
+
+export {
+  CLASS_VIOLATIONS,
+} from "@/mock/violations";
+
+export const CLASS_INFO: Record<string, {
+  id: string; label: string; dept: string; year: string;
+  section: string; strength: number; roomNo: string;
+  online: number; waiting: number; approved: number;
+}> = {
+  "CSE-3A": { id:"CSE-3A", label:"CSE – 3rd Year A", dept:"Computer Science & Engineering", year:"3rd Year", section:"A", strength:20, roomNo:"Lab 101", online:18, waiting:8,  approved:10 },
+  "CSE-3B": { id:"CSE-3B", label:"CSE – 3rd Year B", dept:"Computer Science & Engineering", year:"3rd Year", section:"B", strength:8,  roomNo:"Lab 102", online:7,  waiting:2,  approved:5  },
+  "ECE-3A": { id:"ECE-3A", label:"ECE – 3rd Year A", dept:"Electronics & Communication",    year:"3rd Year", section:"A", strength:10, roomNo:"Lab 201", online:10, waiting:4,  approved:6  },
+  "IT-2A":  { id:"IT-2A",  label:"IT  – 2nd Year A", dept:"Information Technology",         year:"2nd Year", section:"A", strength:10, roomNo:"Lab 301", online:9,  waiting:3,  approved:6  },
+};

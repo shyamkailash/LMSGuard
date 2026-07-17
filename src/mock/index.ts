@@ -4,3 +4,5 @@ export * from "./exams";
 export * from "./violations";
 export * from "./invigilators";
 export * from "./notifications";
+export * from "./subjects";
+export * from "./assignments";

@@ -38,6 +38,14 @@ export const MOCK_TIMELINE: TimelineEvent[] = [
   { id:"T006", time:"10:40 AM", timestamp:Date.now()-1200000, type:"warning", title:"Violation: Arjun Mehta",     description:"VS Code opened alongside browser. High-risk pattern.",               student:"Arjun Mehta",   regno:"22CS102", severity:"critical" },
   { id:"T007", time:"10:42 AM", timestamp:Date.now()-1080000, type:"warning", title:"AI Alert: Karthik Rajan",    description:"Secondary person detected in camera frame.",                        student:"Karthik Rajan", regno:"22CS104", severity:"critical" },
   { id:"T008", time:"10:45 AM", timestamp:Date.now()-900000,  type:"info",    title:"Session Paused",             description:"Exam session temporarily paused by invigilator John Martin.",       severity:"low"      },
-  { id:"T009", time:"10:47 AM", timestamp:Date.now()-780000,  type:"info",    title:"Session Resumed",            description:"Exam session resumed. 5 minutes added to all students.",            severity:"low"      },
+  { id:"T009", time:"10:47 AM", timestamp:Date.now()-780000,  type:"info",    title:"Session Resumed",            description:"Exam sessions resumed. 5 minutes added to all students.",            severity:"low"      },
   { id:"T010", time:"10:55 AM", timestamp:Date.now()-300000,  type:"system",  title:"AI Analysis Complete",       description:"Risk analysis updated. 4 students marked high risk.",               severity:"low"      },
 ];
+
+// Class-wise violation distribution for monitoring
+export const CLASS_VIOLATIONS: Record<string, ViolationRecord[]> = {
+  "CSE-3A": MOCK_VIOLATIONS.filter(v => v.assignedClass === "CSE-3A"),
+  "CSE-3B": MOCK_VIOLATIONS.filter(v => v.assignedClass === "CSE-3B"),
+  "ECE-3A": MOCK_VIOLATIONS.filter(v => v.assignedClass === "ECE-3A"),
+  "IT-2A": MOCK_VIOLATIONS.filter(v => v.assignedClass === "IT-2A"),
+};

@@ -1,15 +1,23 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/providers";
 
-export const metadata = {
-  title: "LMSGuard V2 — AI Examination Monitoring",
-  description: "Enterprise-grade AI powered examination monitoring platform",
-  icons: { icon: "/favicon.ico" },
+export const metadata: Metadata = {
+  title: {
+    default: "LMSGuard V2 — AI Examination Monitoring",
+    template: "%s · LMSGuard V2",
+  },
+  description:
+    "Enterprise-grade AI-powered examination monitoring platform. Real-time proctoring, violation detection, and live session management.",
+  keywords: ["examination", "monitoring", "AI", "proctoring", "LMS"],
+  authors: [{ name: "LMSGuard Team" }],
+  robots: "noindex, nofollow",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -18,7 +26,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body className="bg-background text-text-primary antialiased">{children}</body>
+      <body className="bg-background text-text-primary antialiased" suppressHydrationWarning>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
